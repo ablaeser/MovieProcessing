@@ -64,11 +64,12 @@ else %if strcmpi(params.method, 'translation') || strcmpi(params.method, 'rigid'
     targetstr = '';
     szstr = '';
     alignstr = '';
+    
 end
 % Set up temporal averaging
 weightVector = ones(1, params.avgT);
 if params.avgT > 0
-    if( rem(params.avgT,2) == 0 ),  
+    if ( rem(params.avgT,2) == 0 ),  
         params.avgT = params.avgT+1;
         warning('params.avgT should be set to an odd number - setting to %i', params.avgT);  
     end 
@@ -76,7 +77,7 @@ if params.avgT > 0
     if params.avgTsigma > 0
         tGauss = -avgTpad:avgTpad; 
         weightVector = exp(-(tGauss).^2/(2*params.avgTsigma^2));  
-        weightVector = double(weightVector/sum(weightVector)); %plot(tGauss, gaussWeight)       
+        weightVector = double(weightVector/sum(weightVector)); %plot(tGauss, weightVector)       
     end
 else
     avgTpad = 0;
@@ -130,9 +131,9 @@ for c = 1:Nchunk
         % Spatial downsampling
         if params.binXY ~= 1
             if verbose, fprintf('\nSpatial downsampling factor %i', params.binXY ); end
-            preData = binXY(preData, params.binXY); % pipe.proc.binxy
+            preData = binXY(preData, params.binXY); 
             if c == 1
-                preRef = binXY(preRef, params.binXY); % pipe.proc.binxy
+                preRef = binXY(preRef, params.binXY);
             end
         end
         
@@ -219,25 +220,6 @@ for c = 1:Nchunk
             %WriteTiff(uint16(rawData), rawDataTifPath); %saveastiff( uint16(preData), preDataTifPath, GrayOpt);
             if verbose, fprintf('\nWriting %s', preDataTifPath); end
             WriteTiff(uint16(preData), preDataTifPath);
-        end
-
-        % PERFORM REGISTRATION
-        % pre-align using DFT (optional) (needs to be updated to remove pipe dependency)
-        if params.prereg > 0
-            %{
-            if verbose, fprintf('\nDFT pre-registration enabled (upsample = %i) ', params.prereg); end
-            target_fft = fft2(double(preRef));
-            dft_transforms = cell(1,NchunkScans); dft_reg = cell(1,NchunkScans); % data_fft = cell(1,NchunkScans); 
-            parfor i = 1:NchunkScans
-                [dft_transforms{i}, reg] = pipe.reg.dftcore(target_fft, fft2( double(preData(:,:,i)) ), params.prereg);
-                dft_reg{i} = abs(ifft2(reg));
-            end
-            preData = cat(3, dft_reg{:});
-            dft_transforms = cat(1, dft_transforms{:})';
-            %}
-            fprintf('\nPre-registration needs to be updated');
-        else
-            if verbose, fprintf('\nPre-registration disabled'); end
         end
 
         % Final registration

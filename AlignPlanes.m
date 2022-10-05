@@ -73,7 +73,7 @@ if ~isempty(zReg)
         regName = sprintf('%s_z%02d%s', sbxInfo.exptName, z, nameStr);
         tic
         regTform(z,:) = RegisterSBX(sbxInputPath, sbxInfo, refVol(:,:,z), params, z, 'firstScan',firstScan, 'Nscan',sbxInfo.totScan, ...
-            'dir',regDir, 'name',regName, 'verbose',false, 'intTif',true, 'finalTif',true, 'overwrite',overwrite);  % 
+            'dir',regDir, 'name',regName, 'verbose',false, 'intTif',false, 'finalTif',false, 'overwrite',overwrite);  % 
         toc
         fprintf('\nSaving %s ', tformPath);
         save(tformPath, 'sbxInputPath', 'sbxInfo', 'refVol', 'params', 'regTform', '-mat');

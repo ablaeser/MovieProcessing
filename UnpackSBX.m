@@ -5,7 +5,7 @@ clear
 clc
 
 % Set the directory of your 'sbx' files
-mainDir = 'D:\2photon\AB38\220902';
+mainDir = 'D:\2photon\AB40\221004\';
 % add '\' to mainDir if it is not included
 if mainDir(end) ~= '\'
     mainDir(end+1) = '\';
@@ -47,3 +47,10 @@ for s = flip(1:numel(sbxPath)) %1:numel(sbxPath) % flip(1:numel(sbxPath))
         %WriteSbxZproj(fixPath, tempInfo, 'z',zProj, 'chan','both', 'overwrite',false, 'sbxType','raw', 'projType','mean', 'RGB',false, 'monochrome',true); % zprojPath,        
     end
 end
+
+%% Remove bad imaging data
+targetDir = 'D:\2photon\AB39\220922_FOV1\014\';
+targetPath = 'D:\2photon\AB39\220922_FOV1\014\AB39_220922_014.sbx';
+tempInfo = MakeInfoStruct( targetPath );
+WriteSbxPlaneTif(targetPath, tempInfo, 1, 'dir',targetDir, 'name','AB39_220922_014', 'verbose',true, 'chan','green', 'binT',1, 'overwrite',true);
+tempInfo = FixSBX(targetPath, tempInfo, 'flip',flipZ, 'proj',true, 'overwrite',false, 'scans',1:1312);

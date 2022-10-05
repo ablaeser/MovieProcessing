@@ -45,11 +45,14 @@ if ~exist(tformPath, 'file')
         tforms_optotune = MultiStackReg_Fiji_affine(ref_vol,fdir,sbxInfo.Nplane); % _2
         for z = 1:sbxInfo.Nplane, tforms_optotune(z).T([2,4]) = 0;  end % suppress shearing
     elseif strcmp(regType, 'rigid')
+        tforms_optotune = OptoAlign_rigid(ref_vol); % align_vol
+        %{
         tforms_optotune = MultiStackReg_Fiji_rigid(ref_vol,fdir,sbxInfo.Nplane); % rigid still returns an affine transformation matrix?
         for z = 1:sbxInfo.Nplane
             tforms_optotune(z).T([2,4,7,8]) = 0; % suppress shearing
             tforms_optotune(z).T([1,5,9]) = 1; % suppress scaling
         end
+        %}
     elseif strcmpi(regType, 'none')
         tforms_optotune = repmat(affine2d(eye(3)),[1,sbxInfo.Nplane]);
     else
@@ -129,7 +132,8 @@ else
 end
 delete(w);
 % Make the sbxopt file
-fprintf('\nWriting %s', sbxPath); tic;
+optPath = sbxPath; optPath(end-2:end) = 'opt';
+fprintf('\nWriting %s', optPath); tic;
 rw = SbxWriter(sbxPath, sbxInfo, '.sbxopt', true); % pipe.io.RegWriter(sbxPath, sbxInfo, '.sbxopt', true);
 rw.write(sbx_data);
 rw.delete;

@@ -1,8 +1,14 @@
 function sbxOutputInfo = FixSBX(sbxInputPath, sbxInputInfo, varargin)
-
+checkInfo = @(x)(isstruct(x) || isempty(x));
 IP = inputParser;
 addRequired( IP, 'sbxInputPath', @ischar )
-addRequired( IP, 'sbxInfo', @isstruct )
+addRequired( IP, 'sbxInfo', checkInfo ) %  @isstruct
+if isempty(sbxInputInfo)
+    [pathDir, pathName, ~] = fileparts(sbxInputPath); % pathExt
+    [~,infoPath] = FileFinder(pathDir, 'type','mat', 'criteria',@(x)(strcmp(x,pathName))); % 
+    fprintf('\nNo info structure was provided. Loading %s', infoPath{1})
+    sbxInputInfo = MakeInfoStruct( infoPath{1} );
+end
 addParameter( IP, 'z', 1:sbxInputInfo.Nplane, @isnumeric )
 addParameter( IP, 'scans', 1:sbxInputInfo.Nscan, @isnumeric )
 addParameter( IP, 'flip', false, @islogical )

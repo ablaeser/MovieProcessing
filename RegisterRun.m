@@ -4,31 +4,24 @@ IP = inputParser;
 addRequired( IP, 'sbxInfo', @isstruct )
 addRequired( IP, 'regParams', @isstruct )
 addParameter( IP, 'overwrite', false, @islogical )
-%addParameter( IP, 'edges', [80,80,20,20], @isnumeric ) % [60,60,40,40]
 addParameter( IP, 'chunk', 20, @isnumeric ) %don't go over 20
-%addParameter( IP, 'refChan', 'green', @ischar ) % for scanbox, 1 = green, 2 = red. -1 = both
-%addParameter( IP, 'scale', 2, @isnumeric ) %
 addParameter( IP, 'minInt', 1500, @isnumeric )
 addParameter( IP, 'fix', false, @islogical )
 addParameter( IP, 'flip', true, @islogical )
 addParameter( IP, 'dewarp', 'affine', @ischar )
-%addParameter( IP, 'binT', 1, @isnumeric )
 parse( IP, sbxInfo, regParams, varargin{:} ); % mouse, exptDate,
 %regParams = IP.Results.regParams;
 overwrite = IP.Results.overwrite;
 setEdges = regParams.edges; %IP.Results.edges;
 fixSbx = IP.Results.fix;
 flipZ = IP.Results.flip;
-%binT = IP.Results.binT;
-%scaleFactor = IP.Results.scale;
 dewarpType = IP.Results.dewarp;
 chunkSize = IP.Results.chunk;
 minInt = IP.Results.minInt;
-%regParams.refChan = IP.Results.regParams.refChan;  
-
+refChanInd = find(strcmpi({'red','green'}, regParams.refChan));
 
 % Determine file paths and names
-sbxInputPath = sbxInfo.path; 
+sbxInputPath = sbxInfo.path;
 [fDir, fName] = fileparts(sbxInputPath);
 pathTemplate = strcat( fDir, '\', fName );
 sbxFixPath = [pathTemplate, '.sbxfix'];
@@ -58,67 +51,77 @@ end
 
 % Write tifs from the raw data
 fprintf('\n   Writing raw projections... ');
-WriteSbxProjection(sbxInputPath, sbxInfo, 'verbose',true, 'chan','both', 'monochrome',true, 'RGB',true, 'type','raw', 'overwrite',overwrite);  % writeChan rawProjPath,
+if isempty(regParams.edges)
+    rawProjMean = WriteSbxProjection(sbxInputPath, sbxInfo, 'verbose',true, 'chan','both', 'monochrome',true, 'RGB',true, 'type','raw', 'overwrite',overwrite);  % writeChan rawProjPath,
+    regParams.edges = GetEdges3D(rawProjMean(:,:,:,refChanInd), 'rate_max',1, 'allow_zero',false, 'show',true);
+end
+
+
 if sbxInfo.Nplane == 1
     % Rigid, DFT-based alignment to most stable part of movie
     CorrectData2D(sbxInputPath, sbxInfo, regParams, shiftPath, sbxDftPath, 'overwrite',false, 'sigma',[3,3,5]);
     %WriteSbxPlaneTif(sbxInputPath, sbxInfo, 1, 'verbose',true, 'monochrome',true, 'RGB',false, 'type','raw', 'overwrite',overwrite, 'chan',regParams.refChan, 'edges',regParams.edges, 'binT',8); %
-    WriteSbxProjection(sbxDftPath, sbxInfo, 'verbose',true, 'chan','both', 'monochrome',true, 'RGB',true, 'type','dft', 'overwrite',overwrite); % 
+    WriteSbxProjection(sbxDftPath, sbxInfo, 'verbose',true, 'chan','both', 'monochrome',true, 'RGB',true, 'type','dft', 'overwrite',overwrite); %
     %WriteSbxPlaneTif(sbxDftPath, sbxInfo, 1, 'chan',regParams.refChan, 'edges',regParams.edges, 'scale',regParams.binXY, 'monochrome',true, 'type','dft', 'overwrite',overwrite, 'verbose',true);
     sbxInfo.path = sbxDftPath;
 else
-    % lensing correction for neurolabware data
-    if any(strcmpi(dewarpType, {'affine','rigid'}))
-        if ~exist(sbxOptPath,'file') || overwrite
-            fprintf('\n   Correcting Neurolabware data (%s)... ', dewarpType);
-            GetOptotuneWarp(sbxInputPath, sbxInfo, 'firstRefScan',regParams.refScan(1), 'Nref',numel(regParams.refScan), 'chan',regParams.refChan, 'type',dewarpType, 'edges',setEdges, 'save',true);  % , 'show',true , 'scale',scaleFactor reg , 'firstRefScan',500
+    if (~exist(sbxZpath, 'file') && ~exist(interpPath, 'file')) || overwrite
+        if (~exist(sbxDftPath, 'file') && ~exist(shiftPath, 'file')) || overwrite
+            % lensing correction for neurolabware data
+            if any(strcmpi(dewarpType, {'affine','rigid'}))
+                if ~exist(sbxOptPath,'file') || overwrite
+                    fprintf('\n   Correcting Neurolabware data (%s)... ', dewarpType);
+                    GetOptotuneWarp(sbxInputPath, sbxInfo, 'firstRefScan',regParams.refScan(1), 'Nref',numel(regParams.refScan), 'chan',regParams.refChan, 'type',dewarpType, 'edges',setEdges, 'save',true);  % , 'show',true , 'scale',scaleFactor reg , 'firstRefScan',500
+                end
+                sbxInputPath = sbxOptPath;
+            else
+                fprintf('\ndewarp type not set to affine or rigid - dewarping skipped')
+            end
+
+            % 3D DFT shifts (rigid)
+            optProjMean = WriteSbxProjection(sbxOptPath, sbxInfo, 'verbose',true, 'chan','both', 'monochrome',true, 'RGB',true, 'type','opt', 'overwrite',overwrite);
+            if isempty(setEdges)
+                %optEdges = GetEdges( optProjMean, 'minInt',minInt, 'show',true ); % fprintf('edges = [%i, %i, %i, %i]\n', interpEdges )
+                optEdges = GetEdges3D(optProjMean(:,:,:,refChanInd), 'rate_max',1, 'allow_zero',false, 'show',true); 
+            else
+                optEdges = setEdges;
+                ShowEdges(optEdges, optProjMean(:,:,end));
+            end
         end
-        sbxInputPath = sbxOptPath;
-    else
-        fprintf('\ndewarp type not set to affine or rigid - dewarping skipped')
-    end
 
-    % 3D DFT shifts (rigid)
-    optProjMean = WriteSbxProjection(sbxOptPath, sbxInfo, 'verbose',true, 'chan','both', 'monochrome',true, 'RGB',true, 'type','opt', 'overwrite',overwrite);
-    if isempty(setEdges)
-        optEdges = GetEdges( optProjMean, 'minInt',minInt, 'show',true ); % fprintf('edges = [%i, %i, %i, %i]\n', interpEdges )
-    else
-        optEdges = setEdges;
-        ShowEdges(optEdges, optProjMean(:,:,end));
-    end
-
-    % Calculate rigid corrections
-    tic
-    if ~exist(shiftPath,'file') || overwrite
-        fprintf('\n   Calculating  3D DFT shifts... ');
-        CorrectData3D(sbxInputPath, sbxInfo, shiftPath, regParams.refChan, 'chunkSize',chunkSize, 'edges',optEdges, 'scale',regParams.binXY);
-    end
-    toc
-    % make registered SBX file
-    if ~exist(sbxDftPath,'file') || overwrite
-        fprintf('\n   Writing sbxdft... ');
-        MakeSbxDFT(sbxInputPath, sbxInfo, shiftPath, regParams.refChan, 'edges',optEdges, 'proj',true); % , 'zprojPath',zprojPath zproj_mean =
-    end
-    toc
-    % write mean projection of rigid-corrected data
-    dftProjMean = WriteSbxProjection(sbxDftPath, sbxInfo, 'verbose',true, 'chan','both', 'monochrome',true, 'RGB',true, 'type','dft', 'overwrite',overwrite);
-
-    % z interpolation
-    if isempty(setEdges)
-        dftEdges = GetEdges( dftProjMean, 'minInt',minInt, 'show',true ); % fprintf('edges = [%i, %i, %i, %i]\n', interpEdges )
-    else
-        dftEdges = setEdges;
-        ShowEdges(dftEdges, dftProjMean(:,:,end));
-    end
-
-    if ~exist(sbxZpath,'file') || overwrite
-        if ~exist(interpPath,'file')
-            InterpZ(sbxDftPath, sbxInfo, interpPath, 'scale',regParams.binXY, 'edges',dftEdges, 'chunkSize',chunkSize); %DFT_reg_z_interp(sbxDftPath, interpMatPath, refChan, regParams.binXY, Nchunk, 'optotune',false, 'edges',dftEdges);
+        % Calculate rigid corrections
+        tic
+        if ~exist(shiftPath,'file') || overwrite
+            fprintf('\n   Calculating  3D DFT shifts... ');
+            CorrectData3D(sbxInputPath, sbxInfo, shiftPath, regParams.refChan, 'chunkSize',chunkSize, 'edges',optEdges, 'scale',regParams.binXY);
         end
-        MakeSbxZ(sbxDftPath, sbxInfo, interpPath); % SBX_z_interp(sbxDftPath, interpMatPath);
+        toc
+        % make registered SBX file
+        if ~exist(sbxDftPath,'file') || overwrite
+            fprintf('\n   Writing sbxdft... ');
+            MakeSbxDFT(sbxInputPath, sbxInfo, shiftPath, regParams.refChan, 'edges',optEdges, 'proj',true); % , 'zprojPath',zprojPath zproj_mean =
+        end
+        toc
+        % write mean projection of rigid-corrected data
+        dftProjMean = WriteSbxProjection(sbxDftPath, sbxInfo, 'verbose',true, 'chan','both', 'monochrome',true, 'RGB',true, 'type','dft', 'overwrite',overwrite);
+        % z interpolation
+        if isempty(setEdges)
+            %dftEdges = GetEdges( dftProjMean, 'minInt',minInt, 'show',true ); % fprintf('edges = [%i, %i, %i, %i]\n', interpEdges )
+            dftEdges = GetEdges3D(dftProjMean(:,:,:,refChanInd), 'rate_max',1, 'allow_zero',false, 'show',true); 
+        else
+            dftEdges = setEdges;
+            ShowEdges(dftEdges, dftProjMean(:,:,end));
+        end
+
+        if ~exist(sbxZpath,'file') || overwrite
+            if ~exist(interpPath,'file')
+                InterpZ(sbxDftPath, sbxInfo, interpPath, 'scale',regParams.binXY, 'edges',dftEdges, 'chunkSize',chunkSize); %DFT_reg_z_interp(sbxDftPath, interpMatPath, refChan, regParams.binXY, Nchunk, 'optotune',false, 'edges',dftEdges);
+            end
+            MakeSbxZ(sbxDftPath, sbxInfo, interpPath); % SBX_z_interp(sbxDftPath, interpMatPath);
+        end
+        sbxInfo.path = sbxZpath;
+        WriteSbxProjection(sbxZpath, sbxInfo, 'verbose',true, 'chan','both', 'monochrome',true, 'RGB',true, 'type','Z', 'overwrite',overwrite);
     end
-    sbxInfo.path = sbxZpath;
-    WriteSbxProjection(sbxZpath, sbxInfo, 'verbose',true, 'chan','both', 'monochrome',true, 'RGB',true, 'type','Z', 'overwrite',overwrite);
 end
 close all;
 end

@@ -44,6 +44,6 @@ end
 Y = vertcat( Ypar{:} );
 toc
 %
-%figure; plot( [X(:,1), Y(:,1)] )
+figure; plot( [X(:,1), Y(:,1)] )
 
 end

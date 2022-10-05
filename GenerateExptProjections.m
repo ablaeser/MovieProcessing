@@ -8,7 +8,7 @@ end
 projParam.dir = strcat(expt.dir, 'Projections\'); mkdir(projParam.dir);
 projParamPath = sprintf('%s%s_projParam.mat', projParam.dir, expt.name);
 chanName = {'red','green'};
-if ~exist(projParamPath, 'file') || projParam.overwrite
+if nargin > 3%~exist(projParamPath, 'file') % || projParam.overwrite
     runsDir = sprintf('%sRuns\\',projParam.dir); mkdir(runsDir);
     if expt.Nplane == 1, projParam.z = {1}; end
     projParam.Ncolor = numel(projParam.color);
@@ -33,31 +33,46 @@ if ~exist(projParamPath, 'file') || projParam.overwrite
     for runs = 1:expt.Nruns
         tempName = sprintf('%s_run%i',expt.name, runs); % _%s , projParam.color{c}
         if expt.Nplane == 1
-            [~, rawRunProj(runs,:,1), ~] = WriteSbxPlaneTif(expt.sbx.cat, catInfo, 1, 'chan','both', 'firstScan',expt.scanLims(runs)+projParam.bin+1, 'Nscan',expt.Nscan(runs)-projParam.bin, ...
-                'edge',projParam.edge, 'scale',projParam.scaleFactor, 'binT',projParam.bin, 'RGB',false, 'dir',runsDir, 'name',tempName, 'type','raw', 'overwrite',projParam.overwrite );
-            [~, regRunProj(runs,:,1), runBinLims{runs}] = WriteSbxPlaneTif(expt.sbx.reg, catInfo, 1, 'chan','both', 'firstScan',expt.scanLims(runs)+projParam.bin+1, 'Nscan',expt.Nscan(runs)-projParam.bin, ...
-                'edge',projParam.edge, 'scale',projParam.scaleFactor, 'binT',projParam.bin, 'RGB',false, 'dir',runsDir, 'name',tempName, 'type','reg', 'overwrite',projParam.overwrite );
+            if exist(expt.sbx.cat, 'file')
+                %[stackOut, stackChan, binLims, projPaths] = WriteSbxPlaneTif(sbxPath, sbxInfo, z, varargin) 
+                [~, rawRunProj(runs,:,1), runBinLims{runs}, tempRawProjPath] = WriteSbxPlaneTif(expt.sbx.cat, catInfo, 1, 'chan','both', 'firstScan',expt.scanLims(runs)+projParam.bin+1, 'Nscan',expt.Nscan(runs)-projParam.bin, ...
+                    'edge',projParam.edge, 'scale',projParam.scaleFactor, 'binT',projParam.bin, 'RGB',false, 'dir',runsDir, 'name',tempName, 'type','raw', 'overwrite',projParam.overwrite );
+                %rawRunProj{runs,1,1} = tempRunProj(:,:,:,1);  rawRunProj{runs,2,1} = tempRunProj(:,:,:,2);
+                projParam.path.run.raw.z(runs,:,1) = tempRawProjPath;
+            end
+            if exist(expt.sbx.reg, 'file')
+                [~, regRunProj(runs,:,1), runBinLims{runs}, tempRegProjPath] = WriteSbxPlaneTif(expt.sbx.reg, catInfo, 1, 'chan','both', 'firstScan',expt.scanLims(runs)+projParam.bin+1, 'Nscan',expt.Nscan(runs)-projParam.bin, ...
+                    'edge',projParam.edge, 'scale',projParam.scaleFactor, 'binT',projParam.bin, 'RGB',false, 'dir',runsDir, 'name',tempName, 'type','reg', 'overwrite',projParam.overwrite );
+                %regRunProj{runs,1,1} = tempRegProj(:,:,:,1);  regRunProj{runs,2,Z} = tempRegProj(:,:,:,2);
+                projParam.path.run.reg.z(runs,:,1) = tempRegProjPath;
+            end
         else
             % Z projections
             if projParam.Nz > 0
                 for Z = 1:projParam.Nz
-                    [tempRegProj, runBinLims{runs}, tempRegProjPath] = WriteSbxZproj(expt.sbx.reg, catInfo, 'z',projParam.z{Z}, 'chan','both', 'dir',runsDir, 'name',tempName, 'sbxType','reg', 'projType',projParam.type, 'monochrome',true,...
-                        'firstScan',expt.scanLims(runs)+1, 'Nscan', expt.Nscan(runs), 'edge',projParam.edge, 'scale',projParam.scaleFactor, 'binT',projParam.bin, 'overwrite',projParam.overwrite); % expt.Nscan(runs)
-                    regRunProj{runs,1,Z} = tempRegProj(:,:,:,1);  regRunProj{runs,2,Z} = tempRegProj(:,:,:,2);
-                    projParam.path.run.reg.z(runs,:,Z) = tempRegProjPath;
+                    if exist(expt.sbx.reg, 'file')
+                        [tempRegProj, runBinLims{runs}, tempRegProjPath] = WriteSbxZproj(expt.sbx.reg, catInfo, 'z',projParam.z{Z}, 'chan','both', 'dir',runsDir, 'name',tempName, 'sbxType','reg', 'projType',projParam.type, 'monochrome',true,...
+                            'firstScan',expt.scanLims(runs)+1, 'Nscan', expt.Nscan(runs), 'edge',projParam.edge, 'scale',projParam.scaleFactor, 'binT',projParam.bin, 'overwrite',projParam.overwrite); % expt.Nscan(runs)
+                        regRunProj{runs,1,Z} = tempRegProj(:,:,:,1);  regRunProj{runs,2,Z} = tempRegProj(:,:,:,2);
+                        projParam.path.run.reg.z(runs,:,Z) = tempRegProjPath;
+                    end
+                    if exist(expt.sbx.cat, 'file')
+                        [tempRunProj, runBinLims{runs}, tempRawProjPath] = WriteSbxZproj(expt.sbx.cat, catInfo, 'z',projParam.z{Z}, 'chan','both', 'dir',runsDir, 'name',tempName, 'sbxType','raw', 'projType',projParam.type, 'monochrome',true,...
+                            'firstScan',expt.scanLims(runs)+1, 'Nscan', expt.Nscan(runs), 'edge',projParam.edge, 'scale',projParam.scaleFactor, 'binT',projParam.bin, 'overwrite',projParam.overwrite);
 
-                    [tempRunProj, ~, tempRawProjPath] = WriteSbxZproj(expt.sbx.cat, catInfo, 'z',projParam.z{Z}, 'chan','both', 'dir',runsDir, 'name',tempName, 'sbxType','raw', 'projType',projParam.type, 'monochrome',true,...
-                        'firstScan',expt.scanLims(runs)+1, 'Nscan', expt.Nscan(runs), 'edge',projParam.edge, 'scale',projParam.scaleFactor, 'binT',projParam.bin, 'overwrite',projParam.overwrite);
-                    rawRunProj{runs,1,Z} = tempRunProj(:,:,:,1);  rawRunProj{runs,2,Z} = tempRunProj(:,:,:,2);
-                    projParam.path.run.raw.z(runs,:,Z) = tempRawProjPath;
+                    end
                 end
             end
             % Volume tifs
             if projParam.vol
-                [rawVol{runs}, ~, projParam.path.run.raw.vol(runs,:)] = WriteSbxVolumeTif(expt.sbx.cat, catInfo, 'chan','both', 'dir',runsDir, 'name',tempName, 'type','raw', 'monochrome',true, 'RGB',true,...
-                    'firstScan',expt.scanLims(runs)+1, 'Nscan', expt.Nscan(runs), 'edge',projParam.edge, 'binT',projParam.bin, 'overwrite',projParam.overwrite); %projParam.overwrite
-                [regVol{runs}, ~, projParam.path.run.reg.vol(runs,:)] = WriteSbxVolumeTif(expt.sbx.reg, catInfo, 'chan','both', 'dir',runsDir, 'name',tempName, 'type','reg', 'monochrome',true, 'RGB',true,...
-                    'firstScan',expt.scanLims(runs)+1, 'Nscan', expt.Nscan(runs), 'edge',projParam.edge, 'binT',projParam.bin, 'overwrite',projParam.overwrite);
+                if exist(expt.sbx.reg, 'file')
+                    [regVol{runs}, ~, projParam.path.run.reg.vol(runs,:)] = WriteSbxVolumeTif(expt.sbx.reg, catInfo, 'chan','both', 'dir',runsDir, 'name',tempName, 'type','reg', 'monochrome',true, 'RGB',true,...
+                        'firstScan',expt.scanLims(runs)+1, 'Nscan', expt.Nscan(runs), 'edge',projParam.edge, 'binT',projParam.bin, 'overwrite',projParam.overwrite);
+                end
+                if exist(expt.sbx.cat, 'file')
+                    [rawVol{runs}, ~, projParam.path.run.raw.vol(runs,:)] = WriteSbxVolumeTif(expt.sbx.cat, catInfo, 'chan','both', 'dir',runsDir, 'name',tempName, 'type','raw', 'monochrome',true, 'RGB',true,...
+                        'firstScan',expt.scanLims(runs)+1, 'Nscan', expt.Nscan(runs), 'edge',projParam.edge, 'binT',projParam.bin, 'overwrite',projParam.overwrite); %projParam.overwrite
+                end
             end
         end
         % Account for temporal binning in time vectors
@@ -78,13 +93,17 @@ if ~exist(projParamPath, 'file') || projParam.overwrite
         fprintf('\nGenerating concatenated projections')
         if expt.Nplane == 1
             for chan = find(any(~cellfun(@isempty, rawRunProj(:,:,1)))) %find(~cellfun(@isempty, rawRunProj(:,:,1)))
-                projParam.path.cat.raw.z{chan,1} = sprintf('%s%s_raw_%s.tif', projParam.dir, expt.name, projParam.color{chan} );
-                if ~exist(projParam.path.cat.raw.z{chan,1}, 'file')
-                    WriteTiff(cat(3, rawRunProj{:,chan,1}), projParam.path.cat.raw.z{chan,1} );
+                if exist(expt.sbx.cat, 'file')
+                    projParam.path.cat.raw.z{chan,1} = sprintf('%s%s_raw_%s.tif', projParam.dir, expt.name, projParam.color{chan} );
+                    if ~exist(projParam.path.cat.raw.z{chan,1}, 'file')
+                        WriteTiff(cat(3, rawRunProj{:,chan,1}), projParam.path.cat.raw.z{chan,1} );
+                    end
                 end
-                projParam.path.cat.reg.z{chan,1} = sprintf('%s%s_reg_%s.tif', projParam.dir, expt.name, projParam.color{chan} );
-                if ~exist(projParam.path.cat.reg.z{chan,1}, 'file')
-                    WriteTiff(cat(3, regRunProj{:,chan,1}), projParam.path.cat.reg.z{chan,1} );
+                if exist(expt.sbx.reg, 'file')
+                    projParam.path.cat.reg.z{chan,1} = sprintf('%s%s_reg_%s.tif', projParam.dir, expt.name, projParam.color{chan} );
+                    if ~exist(projParam.path.cat.reg.z{chan,1}, 'file')
+                        WriteTiff(cat(3, regRunProj{:,chan,1}), projParam.path.cat.reg.z{chan,1} );
+                    end
                 end
             end
         else
@@ -98,51 +117,55 @@ if ~exist(projParamPath, 'file') || projParam.overwrite
                         projParam.path.cat.raw.z{Z,chan} = sprintf('%s%s_%s_z%i-%i_raw_%s.tif', projParam.dir, expt.name, projParam.type, projParam.z{Z}(1), projParam.z{Z}(end), projParam.color{chan} );
                         projParam.path.cat.reg.z{Z,chan} = sprintf('%s%s_%s_z%i-%i_reg_%s.tif', projParam.dir, expt.name, projParam.type, projParam.z{Z}(1), projParam.z{Z}(end), projParam.color{chan} );
                     end
-                    if ~exist(projParam.path.cat.raw.z{Z,chan}, 'file')
+                    if exist(expt.sbx.cat, 'file') && ~exist(projParam.path.cat.raw.z{Z,chan}, 'file')
                         WriteTiff(cat(3, rawRunProj{:,chan,Z}), projParam.path.cat.raw.z{Z,chan} );
                     end
-                    if ~exist(projParam.path.cat.reg.z{Z,chan}, 'file')
+                    if exist(expt.sbx.reg, 'file') && ~exist(projParam.path.cat.reg.z{Z,chan}, 'file')
                         WriteTiff(cat(3, regRunProj{:,chan,Z}), projParam.path.cat.reg.z{Z,chan} );
                     end
                 end
             end
             % Concatenated Volume tifs
             if projParam.vol
-                projParam.path.cat.raw.vol{3} = sprintf('%s%s_raw_vol_RGB.tif', projParam.dir, expt.name );
-                if ~exist(projParam.path.cat.raw.vol{3},'file') || projParam.overwrite
-                    tempCat = uint16(cat(5, rawVol{:}));
-                    for chan = flip(1:size(tempCat,4))
-                        projParam.path.cat.raw.vol{chan} = sprintf('%s%s_raw_vol_%s.tif', projParam.dir, expt.name, chanName{chan} );
-                        if ~exist(projParam.path.cat.raw.vol{chan},'file') || projParam.overwrite
-                            fprintf('\nWriting %s', projParam.path.cat.raw.vol{chan})
-                            bfsave( tempCat(:,:,:,chan,:), projParam.path.cat.raw.vol{chan});
-                        end
+                if exist(expt.sbx.cat, 'file')
+                    projParam.path.cat.raw.vol{3} = sprintf('%s%s_raw_vol_RGB.tif', projParam.dir, expt.name );
+                    if ~exist(projParam.path.cat.raw.vol{3},'file') || projParam.overwrite
+                        tempCat = uint16(cat(5, rawVol{:}));
+                        for chan = flip(1:size(tempCat,4))
+                            projParam.path.cat.raw.vol{chan} = sprintf('%s%s_raw_vol_%s.tif', projParam.dir, expt.name, chanName{chan} );
+                            if ~exist(projParam.path.cat.raw.vol{chan},'file') || projParam.overwrite
+                                fprintf('\nWriting %s', projParam.path.cat.raw.vol{chan})
+                                bfsave( tempCat(:,:,:,chan,:), projParam.path.cat.raw.vol{chan});
+                            end
 
-                        chanLower = prctile(reshape(tempCat(:,:,:,chan,:),[],1), 5);
-                        chanUpper = max(reshape(tempCat(:,:,:,chan,:),[],1)); %prctile(stackChan{chan}(:), 1);
-                        %fprintf('\nRescaling %s channel : [%i, %i] -> [0, 255]', chanName{chan}, chanLower, chanUpper);
-                        tempCat(:,:,:,chan,:) = rescale(tempCat(:,:,:,chan,:), 0, 2^8-1, 'inputMin',chanLower, 'inputMax',chanUpper);
+                            chanLower = prctile(reshape(tempCat(:,:,:,chan,:),[],1), 5);
+                            chanUpper = max(reshape(tempCat(:,:,:,chan,:),[],1)); %prctile(stackChan{chan}(:), 1);
+                            %fprintf('\nRescaling %s channel : [%i, %i] -> [0, 255]', chanName{chan}, chanLower, chanUpper);
+                            tempCat(:,:,:,chan,:) = rescale(tempCat(:,:,:,chan,:), 0, 2^8-1, 'inputMin',chanLower, 'inputMax',chanUpper);
+                        end
+                        fprintf('\nWriting %s', projParam.path.cat.raw.vol{3})
+                        bfsave( uint8(tempCat), projParam.path.cat.raw.vol{3});
                     end
-                    fprintf('\nWriting %s', projParam.path.cat.raw.vol{3})
-                    bfsave( uint8(tempCat), projParam.path.cat.raw.vol{3});
                 end
-                projParam.path.cat.reg.vol{3} = sprintf('%s%s_reg_vol_RGB.tif', projParam.dir, expt.name );
-                if ~exist(projParam.path.cat.reg.vol{3},'file') || projParam.overwrite
-                    tempCat = uint16(cat(5, regVol{:}));
-                    for chan = flip(1:size(tempCat,4))
-                        projParam.path.cat.reg.vol{chan} = sprintf('%s%s_reg_vol_%s.tif', projParam.dir, expt.name, chanName{chan} );
-                        if ~exist(projParam.path.cat.reg.vol{chan},'file') || projParam.overwrite
-                            fprintf('\nWriting %s', projParam.path.cat.reg.vol{chan})
-                            bfsave( tempCat(:,:,:,chan,:), projParam.path.cat.reg.vol{chan});
-                        end
+                if exist(expt.sbx.reg, 'file')
+                    projParam.path.cat.reg.vol{3} = sprintf('%s%s_reg_vol_RGB.tif', projParam.dir, expt.name );
+                    if ~exist(projParam.path.cat.reg.vol{3},'file') || projParam.overwrite
+                        tempCat = uint16(cat(5, regVol{:}));
+                        for chan = flip(1:size(tempCat,4))
+                            projParam.path.cat.reg.vol{chan} = sprintf('%s%s_reg_vol_%s.tif', projParam.dir, expt.name, chanName{chan} );
+                            if ~exist(projParam.path.cat.reg.vol{chan},'file') || projParam.overwrite
+                                fprintf('\nWriting %s', projParam.path.cat.reg.vol{chan})
+                                bfsave( tempCat(:,:,:,chan,:), projParam.path.cat.reg.vol{chan});
+                            end
 
-                        chanLower = prctile(reshape(tempCat(:,:,:,chan,:),[],1), 5);
-                        chanUpper = max(reshape(tempCat(:,:,:,chan,:),[],1)); %prctile(stackChan{chan}(:), 1);
-                        %fprintf('\nRescaling %s channel : [%i, %i] -> [0, 255]', chanName{chan}, chanLower, chanUpper);
-                        tempCat(:,:,:,chan,:) = rescale(tempCat(:,:,:,chan,:), 0, 2^8-1, 'inputMin',chanLower, 'inputMax',chanUpper);
+                            chanLower = prctile(reshape(tempCat(:,:,:,chan,:),[],1), 5);
+                            chanUpper = max(reshape(tempCat(:,:,:,chan,:),[],1)); %prctile(stackChan{chan}(:), 1);
+                            %fprintf('\nRescaling %s channel : [%i, %i] -> [0, 255]', chanName{chan}, chanLower, chanUpper);
+                            tempCat(:,:,:,chan,:) = rescale(tempCat(:,:,:,chan,:), 0, 2^8-1, 'inputMin',chanLower, 'inputMax',chanUpper);
+                        end
+                        fprintf('\nWriting %s', projParam.path.cat.reg.vol{3})
+                        bfsave( uint8(tempCat), projParam.path.cat.reg.vol{3});
                     end
-                    fprintf('\nWriting %s', projParam.path.cat.reg.vol{3})
-                    bfsave( uint8(tempCat), projParam.path.cat.reg.vol{3});
                 end
             end
         end

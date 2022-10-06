@@ -126,10 +126,14 @@ else
         % Spatial averaging
         if scaleFactor ~= 1
             scaleSize = round([size(projData,1)/scaleFactor, size(projData,2)/scaleFactor, size(projData,3)]);
-            scaleData = cell(1,2);
-            for chan = useChan,  scaleData{chan} = imresize3( projData(:,:,:,chan), scaleSize);  end
-            projData = cat(4, scaleData{useChan});
-            clearvars scaleData;
+            if size(projData,4) > 1 %sbxInfo.nchan > 1
+                scaleData = cell(1,2);
+                for chan = useChan,  scaleData{chan} = imresize3( projData(:,:,:,chan), scaleSize);  end
+                projData = cat(4, scaleData{useChan});
+                clearvars scaleData;
+            else
+                projData = imresize3( projData, scaleSize);
+            end
         end
 
         % Temporal averaging

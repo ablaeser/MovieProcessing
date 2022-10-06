@@ -1,6 +1,6 @@
 clear; clc; close all;
 dataDir = 'D:\2photon\'; % 'D:\2photon\Simone\'; %'C:\2photon';
-dataSet = 'Astrocyte'; % 'Vasculature'; % 'Anatomy'; %     'Afferents'; %  'Neutrophil_Simone'; %  'NGC'; % 'Neutrophil'; % 
+dataSet =  'Afferents'; % 'Astrocyte'; % 'Vasculature'; % 'Anatomy'; %      'Neutrophil_Simone'; %  'NGC'; % 'Neutrophil'; % 
 % Parse data table
 dataTablePath = 'R:\Levy Lab\2photon\ImagingDatasets.xlsx'; % 'R:\Levy Lab\2photon\ImagingDatasetsSimone2.xlsx'; %'D:\MATLAB\ImagingDatasets.xlsx'; % 'D:\MATLAB\NGCdata.xlsx';  Simone
 dataTable = readcell(dataTablePath, 'sheet',dataSet);  % 'NGC', ''
@@ -36,11 +36,15 @@ projParam.type = 'max';
 switch lower(dataSet)
     case 'vasculature'
         projParam.rate_target = 2; % Hz
+        projParam.color = {'red','green'};
     case 'astrocyte'
         projParam.rate_target = 0.5; % Hz
+        projParam.color = {'red','green'};
+    case 'afferents'
+        projParam.rate_target = 0.5; % Hz
+        projParam.color = {'green'}; % 'red',
 end
 projParam.umPerPixel_target = 1; % target um/pix for projections. spatial downsampling 
-projParam.color = {'red','green'};
 projParam.overwrite = false;
 
 % Various useful subsets of the data to choose from
@@ -48,7 +52,7 @@ projParam.overwrite = false;
 %x3D = intersect( xDone, find([dataTable{:,dataCol.volume}] == 1 ));
 %x2D = intersect( xDone, find( [dataTable{:,dataCol.volume}] == 0 ));
 % Choose which subset to  process
-xPresent = 57; %[18,22,24,30:32]; % flip(100:102); %45:47; % [66:69]; %6;  62,64,
+xPresent = 8; %[18,22,24,30:32]; % flip(100:102); %45:47; % [66:69]; %6;  62,64,
 Npresent = numel(xPresent);
 overwrite = false;
 for x = xPresent  %30 %x2D % x2Dcsd % x3D %% 51
@@ -74,9 +78,9 @@ for x = xPresent  %30 %x2D % x2Dcsd % x3D %% 51
     %}
     
     % Concatenate runs and metadata
-    catInfo(x) = ConcatenateRunInfo(expt{x}, runInfo{x}, 'suffix','sbxcat', 'overwrite',overwrite); % Get concatenated metadata
+    catInfo(x) = ConcatenateRunInfo(expt{x}, runInfo{x}, 'suffix','sbxcat', 'overwrite',true); % Get concatenated metadata
     interRunShift = ConcatenateExptRuns(expt{x}, runInfo{x}, catInfo(x), 'refRun',regParam.refRun, 'refChan',expt{x}.refChan, 'setEdge',[70   160   100    80]); %1 
-    catProj = WriteSbxProjection(expt{x}.sbx.cat, catInfo(x), 'chan','both', 'type','cat', 'overwrite',overwrite, 'monochrome',true, 'RGB',true); % , 'bin',50
+    %catProj = WriteSbxProjection(expt{x}.sbx.cat, catInfo(x), 'chan','green', 'type','cat', 'overwrite',overwrite, 'monochrome',true, 'RGB',true); % , 'bin',50
     
      % Use the longest period of stillness to define the reference image
     % Register the concatenated data (see RegisterCat3D, AlignPlanes and RegisterSBX for more info)   
@@ -90,9 +94,9 @@ for x = xPresent  %30 %x2D % x2Dcsd % x3D %% 51
 
     % Generate downsampled, possibly z-projected, movies for each run from the concatenated data
     %[projParam.edge, x_result, y_result] = GetEdges3D( regProj(:,:,:,2), 'show',true );
-    projParam.edge = [60,60,20,20]; % [70 40 20 20];
-    projParam.z = 1; %{1:3, 4:6};  % 
-    projParam.vol = false;
+    projParam.edge = [80,60,55,90];%segParams{x}.edges; %[60,60,20,20]; % [70 40 20 20];
+    projParam.z = {7:10, 18:20, 27:30};  % 1; %
+    projParam.vol = false; % true; %
     projParam.overwrite = false;
     projParam = GenerateExptProjections(expt{x}, catInfo(x), Tscan{x}, projParam); %  
 end

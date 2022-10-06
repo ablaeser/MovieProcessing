@@ -41,8 +41,8 @@ if nargin > 3%~exist(projParamPath, 'file') % || projParam.overwrite
                 projParam.path.run.raw.z(runs,:,1) = tempRawProjPath;
             end
             if exist(expt.sbx.reg, 'file')
-                [~, regRunProj(runs,:,1), runBinLims{runs}, tempRegProjPath] = WriteSbxPlaneTif(expt.sbx.reg, catInfo, 1, 'chan','both', 'firstScan',expt.scanLims(runs)+projParam.bin+1, 'Nscan',expt.Nscan(runs)-projParam.bin, ...
-                    'edge',projParam.edge, 'scale',projParam.scaleFactor, 'binT',projParam.bin, 'RGB',false, 'dir',runsDir, 'name',tempName, 'type','reg', 'overwrite',projParam.overwrite );
+                [~, regRunProj(runs,:,1), runBinLims{runs}, tempRegProjPath] = WriteSbxPlaneTif(expt.sbx.reg, catInfo, 1, 'chan','green', 'firstScan',expt.scanLims(runs)+projParam.bin+1, 'Nscan',expt.Nscan(runs)-projParam.bin, ...
+                    'edge',projParam.edge, 'scale',projParam.scaleFactor, 'binT',projParam.bin, 'RGB',false, 'dir',runsDir, 'name',tempName, 'type','reg', 'overwrite',projParam.overwrite ); % 'both'
                 %regRunProj{runs,1,1} = tempRegProj(:,:,:,1);  regRunProj{runs,2,Z} = tempRegProj(:,:,:,2);
                 projParam.path.run.reg.z(runs,:,1) = tempRegProjPath;
             end
@@ -53,7 +53,14 @@ if nargin > 3%~exist(projParamPath, 'file') % || projParam.overwrite
                     if exist(expt.sbx.reg, 'file')
                         [tempRegProj, runBinLims{runs}, tempRegProjPath] = WriteSbxZproj(expt.sbx.reg, catInfo, 'z',projParam.z{Z}, 'chan','both', 'dir',runsDir, 'name',tempName, 'sbxType','reg', 'projType',projParam.type, 'monochrome',true,...
                             'firstScan',expt.scanLims(runs)+1, 'Nscan', expt.Nscan(runs), 'edge',projParam.edge, 'scale',projParam.scaleFactor, 'binT',projParam.bin, 'overwrite',projParam.overwrite); % expt.Nscan(runs)
-                        regRunProj{runs,1,Z} = tempRegProj(:,:,:,1);  regRunProj{runs,2,Z} = tempRegProj(:,:,:,2);
+                        if size(tempRegProj, 4) == 1 && strcmpi(projParam.color{1}, 'green')
+                            regRunProj{runs,2,Z} = tempRegProj;
+                        elseif size(tempRegProj, 4) == 1 && strcmpi(projParam.color{1}, 'red')
+                            regRunProj{runs,1,Z} = tempRegProj;
+                        else
+                            regRunProj{runs,1,Z} = tempRegProj(:,:,:,1);
+                            regRunProj{runs,2,Z} = tempRegProj(:,:,:,2);
+                        end
                         projParam.path.run.reg.z(runs,:,Z) = tempRegProjPath;
                     end
                     if exist(expt.sbx.cat, 'file')
@@ -109,13 +116,13 @@ if nargin > 3%~exist(projParamPath, 'file') % || projParam.overwrite
         else
             % Concatenated z-projections
             for Z = 1:projParam.Nz
-                for chan = find(all(~cellfun(@isempty, rawRunProj(:,:,Z))))
+                for chan = find(all(~cellfun(@isempty, rawRunProj(:,:,Z))) | all(~cellfun(@isempty, regRunProj(:,:,Z))))
                     if expt.Nplane == 1
                         projParam.path.cat.raw.z{1,chan} = sprintf('%s%s_raw_%s.tif', projParam.dir, expt.name, projParam.color{chan} );
                         projParam.path.cat.reg.z{1,chan} = sprintf('%s%s_reg_%s.tif', projParam.dir, expt.name, projParam.color{chan} );
                     else
-                        projParam.path.cat.raw.z{Z,chan} = sprintf('%s%s_%s_z%i-%i_raw_%s.tif', projParam.dir, expt.name, projParam.type, projParam.z{Z}(1), projParam.z{Z}(end), projParam.color{chan} );
-                        projParam.path.cat.reg.z{Z,chan} = sprintf('%s%s_%s_z%i-%i_reg_%s.tif', projParam.dir, expt.name, projParam.type, projParam.z{Z}(1), projParam.z{Z}(end), projParam.color{chan} );
+                        projParam.path.cat.raw.z{Z,chan} = sprintf('%s%s_%s_z%i-%i_raw_%s.tif', projParam.dir, expt.name, projParam.type, projParam.z{Z}(1), projParam.z{Z}(end), chanName{chan} ); % projParam.color{chan}
+                        projParam.path.cat.reg.z{Z,chan} = sprintf('%s%s_%s_z%i-%i_reg_%s.tif', projParam.dir, expt.name, projParam.type, projParam.z{Z}(1), projParam.z{Z}(end), chanName{chan} );
                     end
                     if exist(expt.sbx.cat, 'file') && ~exist(projParam.path.cat.raw.z{Z,chan}, 'file')
                         WriteTiff(cat(3, rawRunProj{:,chan,Z}), projParam.path.cat.raw.z{Z,chan} );

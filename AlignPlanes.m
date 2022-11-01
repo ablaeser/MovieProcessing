@@ -5,11 +5,13 @@ addRequired( IP, 'sbxPath', @ischar )
 addRequired( IP, 'sbxInfo', @isstruct )
 addRequired( IP, 'params', @isstruct )
 addOptional( IP, 'refVol', [], @isnumeric )
+addParameter( IP, 'repair', [], @isstruct )
 addParameter( IP, 'outPath', '', @ischar )
 addParameter( IP, 'sbx', true, @islogical )
 addParameter( IP, 'overwrite', false, @islogical )
 parse( IP, sbxInputPath, sbxInfo, params, varargin{:} ); 
 refVol = IP.Results.refVol;
+repairStruct = IP.Results.repair;
 writeSbx = IP.Results.sbx;
 overwrite = IP.Results.overwrite;
 sbxOutputPath = IP.Results.outPath;
@@ -35,9 +37,16 @@ if isempty( params.refScan )
     params.refScan = sbxInfo.scanLim(params.refRun)+2:sbxInfo.scanLim(params.refRun+1)-2;
 end
 
-% Check if data has been partially analyzed and pick up where it left off 
-if ~isempty(params.name), params.name = strcat('_', params.name); end
 
+if ~isempty(params.name), params.name = strcat('_', params.name); end
+if isempty(params.name)
+    nameStr = '';
+else
+    nameStr = ['_',params.name];
+end
+regDir = strcat(sbxInfo.dir,'\RegTemp\'); mkdir(regDir);
+
+% Check if data has been partially analyzed and pick up where it left off 
 %register one z plane at a time
 if ~isempty(zReg)
     % Define the reference volume (use middle 50% of data by default)
@@ -60,65 +69,54 @@ if ~isempty(zReg)
     
     % Register plane by plane
     firstScan = 1; %sbxInfo.Nplane = 300;
-    if isempty(params.name)
-        nameStr = '';
-    else
-        nameStr = ['_',params.name];
-    end
-    regDir = strcat(sbxInfo.dir,'\RegTemp\'); mkdir(regDir);
+    Nscan = sbxInfo.totScan-firstScan+1;
+    
     fix(clock)
     fprintf('\n');
-    for z = 1:sbxInfo.Nplane % zReg
+    for z = zReg % 1:sbxInfo.Nplane % 
         fprintf('Registering plane %d of %d...  ',z, sbxInfo.Nplane);
         regName = sprintf('%s_z%02d%s', sbxInfo.exptName, z, nameStr);
         tic
-        regTform(z,:) = RegisterSBX(sbxInputPath, sbxInfo, refVol(:,:,z), params, z, 'firstScan',firstScan, 'Nscan',sbxInfo.totScan, ...
-            'dir',regDir, 'name',regName, 'verbose',false, 'intTif',false, 'finalTif',false, 'overwrite',overwrite);  % 
+        regTform(z,:) = RegisterSBX(sbxInputPath, sbxInfo, refVol(:,:,z), params, z, 'firstScan',firstScan, 'Nscan',Nscan, ...
+            'dir',regDir, 'name',regName, 'verbose',false, 'intTif',false, 'finalTif',true, 'overwrite',overwrite);  % 
         toc
         fprintf('\nSaving %s ', tformPath);
         save(tformPath, 'sbxInputPath', 'sbxInfo', 'refVol', 'params', 'regTform', '-mat');
         toc
     end
-    %{ 
-    % Repair bad registration
-    tempAff = cell(sbxInfo.Nplane, sbxInfo.Nplane); 
-    zRepair = 6;
-    repairScan = 350;
-    Nrepair = 600;
-    
-    for z = zRepair
-        tempAff(z,:) = AffineTurboReg(sbxInputPath, sbxInfo, refVol(:,:,z), params, z, 'firstScan',repairScan, 'sbxInfo.Nplane',Nrepair, ...
-            'dir',regDir, 'name',sprintf('%s_z%02d', sbxInfo.exptName, z), 'verbose',false, 'intTif',true, 'finalTif',true); 
-        %regTform(z,repairScan:repairScan+Nrepair-1) = 
-    end
-    for z = zRepair
-        regTform(z,repairScan:repairScan+Nrepair-1) = tempAff(z,repairScan:repairScan+Nrepair-1);
-    end
-    
-    for z = 1
-        for s = 1:sbxInfo.totScan
-            deformCatStruct.transAP(s,z) = regTform{z,s}.T(3,1); % Trans AP (right/left +/-) trans_x
-            deformCatStruct.transML(s,z) = regTform{z,s}.T(3,2); % Trans ML (down/up +/-)  trans_y
-            deformCatStruct.scaleAP(s,z) = regTform{z,s}.T(1,1); % Scale AP (inflate/deflate >/< 1)  scale_x
-            deformCatStruct.scaleML(s,z) = regTform{z,s}.T(2,2); % Scale ML (inflate/deflate >/< 1) scale_y
-            deformCatStruct.shearAP(s,z) = regTform{z,s}.T(1,2); % Shear AP (tilt left/right +/-)  shear_x
-            deformCatStruct.shearML(s,z) = regTform{z,s}.T(2,1); % Shear ML (tilt down/right +/-) shear_y
-        end
-    end
-    plot( 
-    %}
 end
+
+% Redo a subset of registration - consider whether params need to be modified to get a better result
+if ~isempty(repairStruct)
+    firstRepairScan = repairStruct.scan(1);
+    Nrepair = numel(repairStruct.scan);
+    repairTform = cell(sbxInfo.Nplane, sbxInfo.totScan);
+    tic
+    for z = repairStruct.z %zRepair
+        fprintf('Repairing plane %d, scans %i to %i...  ',z, firstRepairScan, firstRepairScan+Nrepair-1); 
+        regName = sprintf('%s_z%02d%s', sbxInfo.exptName, z, nameStr);
+        repairTform(z,:) = RegisterSBX(sbxInputPath, sbxInfo, refVol(:,:,z), params, z, 'firstScan',firstRepairScan, 'Nscan',Nrepair, ...
+            'dir',regDir, 'name',regName, 'verbose',false, 'intTif',true, 'finalTif',true, 'overwrite',true);  %
+        % Insert the results into regTform 
+        regTform(z,firstRepairScan:firstRepairScan+Nrepair-1) = repairTform(z,firstRepairScan:firstRepairScan+Nrepair-1);
+        toc
+    end
+    
+    % Save repaired results
+    fprintf('\nSaving %s ', tformPath);
+    save(tformPath, 'sbxInputPath', 'sbxInfo', 'refVol', 'params', 'regTform', '-mat');
+    toc
+end
+
 
 % Apply the transforms and generate sbx_affine
 if writeSbx && (~exist(sbxOutputPath,'file') || overwrite)
-    Nrow = sbxInfo.sz(1); 
-    Ncol = sbxInfo.sz(2); 
     [chunkLims, Nchunk, chunkLength] = MakeChunkLims(1, sbxInfo.totScan, 'N',10);
     tic
     w = waitbar(0,'writing .sbxreg');
-    rw = SbxWriter(sbxOutputPath, sbxInfo, '.sbxreg', true); % rw = pipe.io.RegWriter(sbxOutputPath, sbxInfo, '.sbxreg', true);
+    rw = SbxWriter(sbxOutputPath, sbxInfo, '.sbxreg', true); 
     fprintf('\n     Writing registered sbx file'); 
-    imRef = imref2d([Nrow,Ncol]);
+    imRef = imref2d([sbxInfo.sz(1), sbxInfo.sz(2)]);
     if sbxInfo.nchan == 1
         [pmt, ~] = DeterminePMT(params.refChan, sbxInfo);
         tic
@@ -130,6 +128,7 @@ if writeSbx && (~exist(sbxOutputPath,'file') || overwrite)
                     data_chunk(:,:,s) = imwarp(data_chunk(:,:,s), regTform{1,chunkLims(chunk,1)+s-1}, 'OutputView',imRef);
                 end
             else
+                % Multi plane, single color
                 for s = 1:chunkLength(chunk)
                     for z = 1:sbxInfo.Nplane
                         data_chunk(:,:,z,s) = imwarp(data_chunk(:,:,z,s), regTform{z,chunkLims(chunk,1)+s-1}, 'OutputView',imRef);

@@ -38,7 +38,7 @@ if ~exist(savePath, 'file') || overwrite
         fprintf('\nGetting results of DFT registration');
         for runs = flip(1:infoStruct.Nrun)
             [~,shiftPath] = FileFinder( infoStruct.runDir{runs}, 'type','mat', 'contains','dftshifts'); % infoStruct(r).dir
-            shiftData(runs) = load(shiftPath{1}); %#ok<*AGROW>
+            shiftData(runs) = load(shiftPath{1}, 'RS_final', 'CS_final', 'ZS_final'); %#ok<*AGROW>
         end
         deformResultStruct.RS_final = [shiftData.RS_final]'; 
         deformResultStruct.CS_final = [shiftData.CS_final]';
@@ -56,7 +56,7 @@ if ~exist(savePath, 'file') || overwrite
     % Get results of planar affine registration
     fprintf('\nGetting results of planar affine registration');
     regTforms = []; affineParams = [];   
-    [~, tformPath] = FileFinder(infoStruct.dir, 'type','mat', 'contains','form'); %FileFind( infoStruct.dir, 'mat', false, @(x)(contains( x, '_affine_tforms' )) );
+    [~, tformPath] = FileFinder(infoStruct.dir, 'type','mat', 'contains','regTforms'); %FileFind( infoStruct.dir, 'mat', false, @(x)(contains( x, '_affine_tforms' )) );
     if ~isempty(tformPath)
         % Load registration results
         regData = load( tformPath{1} ); %strcat(infoStruct.dir,infoStruct.name,'_affine_tforms.mat')

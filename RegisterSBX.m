@@ -260,6 +260,7 @@ for c = 1:Nchunk
             fprintf('\nNo valid registration method specified');
         end
         
+        %{
         % Combine DFT-registration and final registration results (keep in mind we're still in downsampled units)
         if params.prereg > 0
             for i = 1:NchunkScans
@@ -267,6 +268,7 @@ for c = 1:Nchunk
                 reg_transforms{chunkScans(i)}.T(3,2) = reg_transforms{chunkScans(i)}.T(3,2) + dft_transforms(4,i);
             end
         end
+        %}
 
         % Write out the post-registered movie to tif
         if writeIntermediateTif

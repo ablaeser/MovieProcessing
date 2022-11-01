@@ -1,8 +1,16 @@
 function [projStack, rgbStack] = WriteSbxProjection(sbxPath, sbxInfo, varargin) % projPath, 
 % Extract data from an SBX file, and then perform a projection (mean or max) across frames
+checkInfo = @(x)(isstruct(x) || isempty(x));
 IP = inputParser;
 addRequired( IP, 'sbxPath', @ischar )
-addRequired( IP, 'sbxInfo', @isstruct)
+addRequired( IP, 'sbxInfo', checkInfo )
+%addRequired( IP, 'sbxInfo', checkInfo ) % @isstruct
+if isempty(sbxInfo)
+    [pathDir, pathName, ~] = fileparts(sbxPath); % pathExt
+    [~,infoPath] = FileFinder(pathDir, 'type','mat', 'criteria',@(x)(strcmp(x,pathName))); % 
+    fprintf('\nNo info structure was provided. Loading %s', infoPath{1})
+    sbxInfo = MakeInfoStruct( infoPath{1} );
+end
 %addOptional( IP, 'projPath', '', @ischar)
 addParameter( IP, 'chan', 'both', @ischar ) % 'green', 'red' or 'both'. for scanbox, PMT 1 = green, PMT2 = red. -1 = both. RGB for channels 
 addParameter( IP, 'z', [], @isnumeric ) 

@@ -50,12 +50,11 @@ end
 
 
 % Write tifs from the raw data
-fprintf('\n   Writing raw projections... ');
+rawProjMean = WriteSbxProjection(sbxInputPath, sbxInfo, 'verbose',true, 'chan','both', 'monochrome',true, 'RGB',true, 'type','raw', 'overwrite',overwrite);  % writeChan rawProjPath,
 if isempty(regParams.edges)
-    rawProjMean = WriteSbxProjection(sbxInputPath, sbxInfo, 'verbose',true, 'chan','both', 'monochrome',true, 'RGB',true, 'type','raw', 'overwrite',overwrite);  % writeChan rawProjPath,
+    %fprintf('\n   Writing raw projections... ');
     regParams.edges = GetEdges3D(rawProjMean(:,:,:,refChanInd), 'rate_max',1, 'allow_zero',false, 'show',true);
 end
-
 
 if sbxInfo.Nplane == 1
     % Rigid, DFT-based alignment to most stable part of movie
@@ -65,8 +64,8 @@ if sbxInfo.Nplane == 1
     %WriteSbxPlaneTif(sbxDftPath, sbxInfo, 1, 'chan',regParams.refChan, 'edges',regParams.edges, 'scale',regParams.binXY, 'monochrome',true, 'type','dft', 'overwrite',overwrite, 'verbose',true);
     sbxInfo.path = sbxDftPath;
 else
-    if (~exist(sbxZpath, 'file') && ~exist(interpPath, 'file')) || overwrite
-        if (~exist(sbxDftPath, 'file') && ~exist(shiftPath, 'file')) || overwrite
+    if (~exist(sbxZpath, 'file') || ~exist(interpPath, 'file')) || overwrite
+        if (~exist(sbxDftPath, 'file') || ~exist(shiftPath, 'file')) || overwrite
             % lensing correction for neurolabware data
             if any(strcmpi(dewarpType, {'affine','rigid'}))
                 if ~exist(sbxOptPath,'file') || overwrite
@@ -90,18 +89,19 @@ else
         end
 
         % Calculate rigid corrections
-        tic
         if ~exist(shiftPath,'file') || overwrite
-            fprintf('\n   Calculating  3D DFT shifts... ');
+            fprintf('\n   Calculating  3D DFT shifts... ');  tic
             CorrectData3D(sbxInputPath, sbxInfo, shiftPath, regParams.refChan, 'chunkSize',chunkSize, 'edges',optEdges, 'scale',regParams.binXY);
+            toc
         end
-        toc
-        % make registered SBX file
+        
+        % make sbxdft file
         if ~exist(sbxDftPath,'file') || overwrite
-            fprintf('\n   Writing sbxdft... ');
+            fprintf('\n   Writing sbxdft... '); tic
             MakeSbxDFT(sbxInputPath, sbxInfo, shiftPath, regParams.refChan, 'edges',optEdges, 'proj',true); % , 'zprojPath',zprojPath zproj_mean =
+            toc
         end
-        toc
+        
         % write mean projection of rigid-corrected data
         dftProjMean = WriteSbxProjection(sbxDftPath, sbxInfo, 'verbose',true, 'chan','both', 'monochrome',true, 'RGB',true, 'type','dft', 'overwrite',overwrite);
         % z interpolation

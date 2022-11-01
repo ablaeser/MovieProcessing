@@ -3,14 +3,13 @@ IP = inputParser;
 addRequired( IP, 'expt', @isstruct )
 addRequired( IP, 'runInfo', @isstruct )
 addRequired( IP, 'catInfo', @isstruct )
-%addParameter( IP, 'overwrite', false, @islogical )
 addParameter( IP, 'minInt', 1000, @isnumeric )
 addParameter( IP, 'maxEdge', [100, 100, 120, 120], @isnumeric ) % [60,60,40,40]
 addParameter( IP, 'setEdge', [], @isnumeric )
 addParameter( IP, 'refRun', 1, @isnumeric )
 addParameter( IP, 'refChan', 'green', @ischar )
 addParameter( IP, 'sbx', 'sbxz', @ischar )
-%addParameter( IP, 'proj', 'interp', @ischar )
+addParameter( IP, 'chunkSize', 100, @isnumeric )
 addParameter( IP, 'ext', 'sbxcat', @ischar )
 addParameter( IP, 'overwrite', false, @islogical ) % for scanbox, 1 = green, 2 = red. -1 = both
 parse( IP, expt, runInfo, catInfo, varargin{:} ); % mouse, exptDate,
@@ -23,19 +22,18 @@ end
 edgeMax = IP.Results.maxEdge;
 edgeSet = IP.Results.setEdge;
 sbxType = IP.Results.sbx;
-%projType = IP.Results.proj;
 refRun = IP.Results.refRun;
 refChan = IP.Results.refChan;
 refChanInd = find(strcmpi(refChan, {'red','green'} ));
 if isempty(refChanInd),  error('Invalid reference channel'); end
 catExt = IP.Results.ext; %'.sbxcat'; % '.sbxcat'
+chunkSize = IP.Results.chunkSize;
 overwrite = IP.Results.overwrite;
-
-interRunShift = zeros(expt.Nruns, 3);
 
 catName = expt.name; % sprintf('%s_FOV%i', , expt.fov);
 catPathRoot = sprintf('%s%s', expt.dir, catName);
 catSbxPath = strcat(catPathRoot, '.', catExt);
+interRunShift = zeros(expt.Nruns, 3);
 if expt.Nruns > 1
     catDir = strcat(expt.dir,'Concat\'); mkdir(catDir)
     if overwrite || ~exist(catSbxPath,'file')
@@ -73,6 +71,9 @@ if expt.Nruns > 1
                 %saveastiff( uint16(cropProj{runs}), sprintf('%s%s_Proj_run%i.tif', catDir, expt.name, runs ) );
                 %saveastiff( hpProj{r}, sprintf('%s%s_HP_run%i.tif', catDir, expt.name, r ) );
             end
+            % Save the uncorrected projections as a BioFormats tif
+            cropProjCat = cat( 4, cropProj{:} );
+            bfsave(cropProjCat(edgeSet(3):end-edgeSet(4),edgeSet(1):end-edgeSet(2),:,:), sprintf('%s%s_uncorrected.tif', catDir, expt.name ))
 
             % Calculate shifts between runs
             zUse = 1:Nplane;
@@ -102,17 +103,10 @@ if expt.Nruns > 1
                 else
                     shiftProj{runs} = imtranslate( runProj{runs}, interRunShift(runs,1:2) );
                 end
-                saveastiff( [cropProj{refRun}, shiftProj{runs}(edgeSet(3):end-edgeSet(4),edgeSet(1):end-edgeSet(2),:)], sprintf('%s%s_shiftProj_run%i.tif', catDir, expt.name, runs ) );
+                %saveastiff( [cropProj{refRun}, shiftProj{runs}(edgeSet(3):end-edgeSet(4),edgeSet(1):end-edgeSet(2),:)], sprintf('%s%s_shiftProj_run%i.tif', catDir, expt.name, runs ) );
             end
             shiftProjCat = cat( 4, shiftProj{:} ); % projCat = cat( 4, nullProj{:} );
-            for z = 1:Nplane
-                %saveastiff( squeeze( projCat(edgeSet(3):end-edgeSet(4),edgeSet(1):end-edgeSet(2),z,:) ), sprintf('%sTest\\%s_ind_z%i.tif', expt.dir, expt.name, z ) )
-                saveastiff( squeeze( shiftProjCat(edgeSet(3):end-edgeSet(4),edgeSet(1):end-edgeSet(2),z,:) ), sprintf('%s%s_cat_z%i.tif', catDir, expt.name, z ) )
-            end
-
-            % Make metadata file
-            %catInfo = ConcatenateRunInfo(expt, runInfo, 'suffix','sbxcat'); %SpoofSBXinfo3D(Nx, Ny, Nplane, totScan, Nchan);
-            %save( catInfoPath, 'info' );
+            bfsave(shiftProjCat(edgeSet(3):end-edgeSet(4),edgeSet(1):end-edgeSet(2),:,:), sprintf('%s%s_cat.tif', catDir, expt.name ))
         else
             for runs = expt.runs
                 sbxPath{runs} = runInfo(runs).path; %sprintf('%s%s.sbx', runInfo(r).dir, runInfo(r).fileName );
@@ -164,6 +158,73 @@ if expt.Nruns > 1
             end
         end
 
+        % Write the sbxcat file
+        fprintf('\n     Writing %s\n', catSbxPath); tic
+        rw = SbxWriter(catSbxPath, catInfo, catExt, true); 
+        w = waitbar(0, sprintf('writing %s',catExt));
+        for runs = 1:expt.Nruns %expt.runs
+            % Load the run stack, in chunks
+            [runChunkLims, NrunChunk, runChunkLength] = MakeChunkLims(1, runInfo(runs).Nscan, runInfo(runs).Nscan, 'allowPartial',true, 'size',chunkSize);
+            fprintf('\n   Loading %s (%i chunks at a time)... ', sbxPath{runs}, chunkSize); tic
+            if expt.Nplane > 1
+                for chunk = 1:NrunChunk
+                    runChunkStack = readSBX(sbxPath{runs}, runInfo(runs), runChunkLims(chunk,1), runChunkLength(chunk), -1, []); % [c,x,y,z,t]
+                    if Nchan == 2
+                        runChunkStack = permute(runChunkStack, [2,3,4,5,1]); % [x,y,z,t,c]
+                        % Apply shifts to each channel of each scan
+                        if ~all(interRunShift(runs,:) == 0)
+                            for s = 1:size(runChunkStack, 4) %1:Nscan(runs)
+                                for c = 1:Nchan
+                                    runChunkStack(:,:,:,s,c) = imtranslate( runChunkStack(:,:,:,s,c), interRunShift(runs,:)  );
+                                end
+                            end
+                        end
+                        runChunkStack = permute(runChunkStack, [5,1,2,3,4]); % [c,x,y,z,t]
+                        runChunkStack = reshape(runChunkStack, [size(runChunkStack,[1,2,3]), prod(size(runChunkStack,[4,5]))]); % rw expects this form
+                    elseif Nchan == 1
+                        % Apply shifts to each scan
+                        if ~all(interRunShift(runs,:) == 0)
+                            for s = 1:size(runChunkStack, 4) 
+                                runChunkStack(:,:,:,s) = imtranslate( runChunkStack(:,:,:,s), interRunShift(runs,:)  );
+                            end
+                        end
+                        runChunkStack = reshape(runChunkStack, [size(runChunkStack,[1,2]), prod(size(runChunkStack,[3,4]))] );
+                    end
+                    rw.write( runChunkStack ); % Write the chunk to sbxcat
+                end
+            else
+                for chunk = 1:NrunChunk
+                    runChunkStack = readSBX(sbxPath{runs}, runInfo(runs), runChunkLims(chunk,1), runChunkLength(chunk), -1, []); % [c,x,y,t]
+                    if Nchan == 2
+                        runChunkStack = permute(runChunkStack, [2,3,4,1]); % [x,y,t,c]
+                        % Apply shifts to each color of each scan
+                        if ~all(interRunShift(runs,:) == 0)
+                            for s = 1:size(runChunkStack, 3) 
+                                for c = 1:Nchan
+                                    runChunkStack(:,:,s,c) = imtranslate( runChunkStack(:,:,s,c), interRunShift(runs,:)  );
+                                end
+                            end
+                        end
+                        runChunkStack = permute(runChunkStack, [4,1,2,3]); % [c,x,y,t]
+                    elseif Nchan == 1
+                        % Apply shifts to each scan
+                        if ~all(interRunShift(runs,:) == 0)
+                            for s = 1:size(runChunkStack, 3) 
+                                runChunkStack(:,:,s) = imtranslate( runChunkStack(:,:,s), interRunShift(runs,:)  );
+                            end
+                        end
+                    end
+                    rw.write( runChunkStack ); % Write the chunk to sbxcat
+                end
+            end
+            waitbar( runs/expt.Nruns, w );
+            toc
+        end
+        rw.delete;
+        delete(w);
+
+        %{
+        % OLD VERSION - HANDLES WHOLE RUNS AT ONCE
         % Write the sbxcat file
         fprintf('\n     Writing %s\n', catSbxPath); tic
         rw = SbxWriter(catSbxPath, catInfo, catExt, true); % pipe.io.RegWriter(catSbxPath, catInfo, catExt, true);
@@ -227,6 +288,7 @@ if expt.Nruns > 1
         end
         rw.delete;
         delete(w);
+        %}
     else
         fprintf('\n%s already exists!', catSbxPath);
     end

@@ -1,5 +1,5 @@
 clear; clc; close all;
-dataDir = 'D:\2photon\'; % 'D:\2photon\Simone\'; %'C:\2photon';
+dataDir = 'D:\2photon\Simone\Simone_Neutrophils\'; 'D:\2photon\'; % 'D:\2photon\Simone\'; %'C:\2photon';
 dataSet = 'Afferents'; % 'Vasculature'; %  'Astrocyte'; %  'Anatomy'; %      'Neutrophil_Simone'; %  'NGC'; % 'Neutrophil'; % 
 % Parse data table
 dataTablePath = 'R:\Levy Lab\2photon\ImagingDatasets.xlsx'; % 'R:\Levy Lab\2photon\ImagingDatasetsSimone2.xlsx'; %'D:\MATLAB\ImagingDatasets.xlsx'; % 'D:\MATLAB\NGCdata.xlsx';  Simone
@@ -15,7 +15,7 @@ expt = cell(1,Nexpt); runInfo = cell(1,Nexpt); Tscan = cell(1,Nexpt); loco = cel
 % Registration parameters
 regParam.refScan = []; % which scans (in concatenated units) should be used to generate the reference image
 regParam.refRun = NaN; % which run should be used to generate the reference image (only used if refScan is empty)
-regParam.chunkSize = 100; % register this many scans at once, to avoid loading too much data
+regParam.chunkSize = 100; % register this many scans at once, to avoid loading too much data and causing memory issues
 regParam.histmatch = false; % true; % enable if registration struggles due to bleaching
 regParam.avgT = 0; % 15;  temporal Gaussian filter width (not downsampling). scans, not seconds
 regParam.avgTsigma = 0; % 5

@@ -15,7 +15,7 @@ expt = cell(1,Nexpt); runInfo = cell(1,Nexpt); Tscan = cell(1,Nexpt); loco = cel
 % Registration parameters
 regParam.refScan = []; % which scans (in concatenated units) should be used to generate the reference image
 regParam.refRun = NaN; % which run should be used to generate the reference image (only used if refScan is empty)
-regParam.chunkSize = 100; % register this many scans at once, to avoid loading too much data
+regParam.chunkSize = 100; % register this many scans at once, to avoid loading too much data and causing memory issues
 regParam.histmatch = false; % true; % enable if registration struggles due to bleaching
 regParam.avgT = 0; % 15;  temporal Gaussian filter width (not downsampling). scans, not seconds
 regParam.avgTsigma = 0; % 5

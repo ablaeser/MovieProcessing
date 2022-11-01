@@ -1,5 +1,5 @@
 clear; clc; close all;
-dataDir = 'D:\2photon\'; % 'D:\2photon\Simone\'; %'C:\2photon';
+dataDir = 'D:\2photon\Simone\Simone_Neutrophils\'; 'D:\2photon\'; % 'D:\2photon\Simone\'; %'C:\2photon';
 dataSet = 'Afferents'; % 'Vasculature'; %  'Astrocyte'; %  'Anatomy'; %      'Neutrophil_Simone'; %  'NGC'; % 'Neutrophil'; % 
 % Parse data table
 dataTablePath = 'R:\Levy Lab\2photon\ImagingDatasets.xlsx'; % 'R:\Levy Lab\2photon\ImagingDatasetsSimone2.xlsx'; %'D:\MATLAB\ImagingDatasets.xlsx'; % 'D:\MATLAB\NGCdata.xlsx';  Simone

@@ -105,5 +105,6 @@ if ~exist(sbxDftPath,'file') || overwrite
     if verbose, tic; end
 else
     fprintf('\n%s already exists and overwrite is disabled - returning\n', sbxDftPath);
+    % GITHUB TEST
 end
 end

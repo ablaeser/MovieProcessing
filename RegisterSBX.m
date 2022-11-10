@@ -49,10 +49,8 @@ if nargout > 1 || writeFinalTif
     regData = zeros(size(rawRef,1), size(rawRef,2), numel(firstScan:lastScan) );
 end
 
-K = 0; % counter to keep track of regData frames
-
 % Set up registration method
-reg_transforms = cell(1, sbxInfo.totScan);
+alignstr = '';
 if strcmpi(params.method, 'affine')
     % Run imagej and prepare turboreg
     if verbose, fprintf('\nRunning ImageJ  '); end
@@ -62,10 +60,9 @@ else %if strcmpi(params.method, 'translation') || strcmpi(params.method, 'rigid'
     [optimizer, metric] = imregconfig('monomodal');
     targets = '';
     targetstr = '';
-    szstr = '';
-    alignstr = '';
-    
+    szstr = ''; 
 end
+
 % Set up temporal averaging
 weightVector = ones(1, params.avgT);
 if params.avgT > 0
@@ -83,8 +80,10 @@ else
     avgTpad = 0;
 end
 
+% Run the registration procedure, chunk by chunk
 if Nscan > 1, w = waitbar(0,'Performing registration'); end
-reg_transforms = repmat( {affine2d}, 1, Nscan );
+reg_transforms = repmat( {affine2d}, 1, Nscan ); % reg_transforms = cell(1, sbxInfo.totScan);
+K = 0; % counter to keep track of regData frames
 for c = 1:Nchunk
     chunkSavePath = sprintf('%sz%02i%s_chunk%04i.mat', chunkTempDir, z, nameStr, c);
     chunkScans = chunkScan(c,1):chunkScan(c,2);
@@ -171,7 +170,7 @@ for c = 1:Nchunk
             %}
             for i = 1:NchunkScans
                 tempIm = preData(:,:,i);
-                matchIm = imhistmatch(uint16(tempIm), uint16(preRef));
+                matchIm = adapthisteq(tempIm); %imhistmatch(uint16(tempIm), uint16(preRef));
                 preData(:,:,i) = matchIm;
                 %{
                 subplot(2,3,2); imshow(tempIm,[]);  title(sprintf('Non-matched data (i = %i)', i));
@@ -225,7 +224,7 @@ for c = 1:Nchunk
         % Final registration
         if strcmpi(params.method, 'affine')
             % Use TurboReg to perform affine registration
-            if c == 1
+            if isempty(alignstr)%c == 1
                 [Nrow, Ncol] = size(preRef);  % Get the dimensions of the preprocessed data chunk
                 % Estimate targets the way turboreg does
                 targets = [0.5*Ncol 0.15*Nrow 0.5*Ncol 0.15*Nrow 0.15*Ncol 0.85*Nrow 0.15*Ncol 0.85*Nrow  0.85*Ncol 0.85*Nrow 0.85*Ncol 0.85*Nrow];

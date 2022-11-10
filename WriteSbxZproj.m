@@ -44,7 +44,7 @@ if binT ~= 1 && rem(Nscan, binT) ~= 0
     fprintf('\nNumber of scans (%i) is not divisible by %i: cutting off first %i scans',Nscan, binT, cutScans);
     firstScan = firstScan+cutScans;
 end
-[binLims, ~, ~] = MakeChunkLims(firstScan, firstScan+Nscan-1, sbxInfo.totScan, 'size',binT, 'allowPartial',true);
+[binLims, ~, ~] = MakeChunkLims(firstScan, firstScan+Nscan-1, sbxInfo.totScan, 'size',binT, 'allowPartial',false);
 projLength = binLims(end)-binLims(1)+1;
 % Determine output file paths and names
 monochrome = IP.Results.monochrome;

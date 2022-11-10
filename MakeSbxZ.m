@@ -1,4 +1,4 @@
-function MakeSbxZ(sbxPath, sbxInfo, shiftPath, varargin)
+function MakeSbxZ_new(sbxPath, sbxInfo, shiftPath)
 % Load interpolation results
 load(shiftPath,'-mat');
 RS = RS1 + RS2 + RS3 + RS_chunk;

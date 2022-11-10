@@ -5,10 +5,11 @@ addRequired( IP, 'sbxInfo', @isstruct )
 addRequired( IP, 'regParams', @isstruct )
 addParameter( IP, 'overwrite', false, @islogical )
 addParameter( IP, 'chunk', 20, @isnumeric ) %don't go over 20
-addParameter( IP, 'minInt', 1500, @isnumeric )
+%addParameter( IP, 'minInt', 1500, @isnumeric )
 addParameter( IP, 'fix', false, @islogical )
 addParameter( IP, 'flip', true, @islogical )
 addParameter( IP, 'dewarp', 'affine', @ischar )
+addParameter( IP, 'interp', true, @islogical )
 parse( IP, sbxInfo, regParams, varargin{:} ); % mouse, exptDate,
 %regParams = IP.Results.regParams;
 overwrite = IP.Results.overwrite;
@@ -17,7 +18,8 @@ fixSbx = IP.Results.fix;
 flipZ = IP.Results.flip;
 dewarpType = IP.Results.dewarp;
 chunkSize = IP.Results.chunk;
-minInt = IP.Results.minInt;
+%minInt = IP.Results.minInt;
+toggleInterp = IP.Results.interp;
 refChanInd = find(strcmpi({'red','green'}, regParams.refChan));
 
 % Determine file paths and names
@@ -105,22 +107,24 @@ else
         % write mean projection of rigid-corrected data
         dftProjMean = WriteSbxProjection(sbxDftPath, sbxInfo, 'verbose',true, 'chan','both', 'monochrome',true, 'RGB',true, 'type','dft', 'overwrite',overwrite);
         % z interpolation
-        if isempty(setEdges)
-            %dftEdges = GetEdges( dftProjMean, 'minInt',minInt, 'show',true ); % fprintf('edges = [%i, %i, %i, %i]\n', interpEdges )
-            dftEdges = GetEdges3D(dftProjMean(:,:,:,refChanInd), 'rate_max',1, 'allow_zero',false, 'show',true); 
-        else
-            dftEdges = setEdges;
-            ShowEdges(dftEdges, dftProjMean(:,:,end));
-        end
-
-        if ~exist(sbxZpath,'file') || overwrite
-            if ~exist(interpPath,'file')
-                InterpZ(sbxDftPath, sbxInfo, interpPath, 'scale',regParams.binXY, 'edges',dftEdges, 'chunkSize',chunkSize); %DFT_reg_z_interp(sbxDftPath, interpMatPath, refChan, regParams.binXY, Nchunk, 'optotune',false, 'edges',dftEdges);
+        if toggleInterp
+            if isempty(setEdges)
+                %dftEdges = GetEdges( dftProjMean, 'minInt',minInt, 'show',true ); % fprintf('edges = [%i, %i, %i, %i]\n', interpEdges )
+                dftEdges = GetEdges3D(dftProjMean(:,:,:,refChanInd), 'rate_max',1, 'allow_zero',false, 'show',true);
+            else
+                dftEdges = setEdges;
+                ShowEdges(dftEdges, dftProjMean(:,:,end));
             end
-            MakeSbxZ(sbxDftPath, sbxInfo, interpPath); % SBX_z_interp(sbxDftPath, interpMatPath);
+
+            if ~exist(sbxZpath,'file') || overwrite
+                if ~exist(interpPath,'file')
+                    InterpZ(sbxDftPath, sbxInfo, interpPath, 'scale',regParams.binXY, 'edges',dftEdges, 'chunkSize',chunkSize); %DFT_reg_z_interp(sbxDftPath, interpMatPath, refChan, regParams.binXY, Nchunk, 'optotune',false, 'edges',dftEdges);
+                end
+                MakeSbxZ(sbxDftPath, sbxInfo, interpPath); % SBX_z_interp(sbxDftPath, interpMatPath);
+            end
+            sbxInfo.path = sbxZpath;
+            WriteSbxProjection(sbxZpath, sbxInfo, 'verbose',true, 'chan','both', 'monochrome',true, 'RGB',true, 'type','Z', 'overwrite',overwrite);
         end
-        sbxInfo.path = sbxZpath;
-        WriteSbxProjection(sbxZpath, sbxInfo, 'verbose',true, 'chan','both', 'monochrome',true, 'RGB',true, 'type','Z', 'overwrite',overwrite);
     end
 end
 close all;

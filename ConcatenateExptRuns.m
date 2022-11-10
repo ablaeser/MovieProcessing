@@ -45,7 +45,7 @@ if expt.Nruns > 1
             Nplane = runInfo(1).Nplane;   % Nrow = runInfo(1).sz(1); Ncol = runInfo(1).sz(2);
             for runs = 1:expt.Nruns % expt.runs
                 sbxPath{runs} = sprintf('%s%s.%s', runInfo(runs).dir, runInfo(runs).fileName, sbxType ); % sbx_affine  sbxz
-                runProj{runs} = WriteSbxProjection(sbxPath{runs}, runInfo(runs), 'verbose',true, 'chan',refChan, 'monochrome',true, 'RGB',false, 'type','Z', 'overwrite',false);
+                runProj{runs} = WriteSbxProjection(sbxPath{runs}, runInfo(runs), 'verbose',true, 'chan',refChan, 'monochrome',true, 'RGB',false, 'type','dft', 'overwrite',false); % 'Z'
                 if ndims(runProj{runs}) == 4, runProj{runs} = squeeze(runProj{runs}(:,:,refChanInd,:)); end
                 if isempty(edgeSet)
                     projEdges(runs,:) = GetEdges( runProj{runs}(:,:,round(expt.Nplane/2)), 'minInt',minInt, 'show',true );
@@ -62,7 +62,6 @@ if expt.Nruns > 1
             end
             aboveEdge = edgeMax - edgeSet < 0;
             edgeSet(aboveEdge) = edgeMax(aboveEdge);
-
 
             %filtSigma = 5;
             for runs = 1:expt.Nruns % expt.runs

@@ -50,7 +50,7 @@ if nargin > 3  %~exist(projParamPath, 'file') % || projParam.overwrite
             % Z projections
             if exist(expt.sbx.reg, 'file')
                 [tempRegProj, runBinLims{runs}, tempRegProjPath] = WriteSbxZproj(expt.sbx.reg, catInfo, 'z',projParam.z, 'chan','both', 'dir',runsDir, 'name',tempName, 'sbxType','reg', 'projType',projParam.type, 'monochrome',true,...
-                    'firstScan',expt.scanLims(runs)+1, 'Nscan', expt.Nscan(runs), 'edge',projParam.edge, 'scale',projParam.scaleFactor, 'binT',projParam.bin, 'overwrite',projParam.overwrite); % expt.Nscan(runs)
+                    'RGB',true, 'firstScan',expt.scanLims(runs)+1, 'Nscan', expt.Nscan(runs), 'edge',projParam.edge, 'scale',projParam.scaleFactor, 'binT',projParam.bin, 'overwrite',projParam.overwrite); % expt.Nscan(runs)
                 for Z = 1:projParam.Nz
                     if size(tempRegProj{Z}, 4) == 1 && strcmpi(projParam.color{1}, 'green')
                         regRunProj(runs,2,:) = tempRegProj;
@@ -59,13 +59,15 @@ if nargin > 3  %~exist(projParamPath, 'file') % || projParam.overwrite
                         regRunProj(runs,1,:) = tempRegProj;
                         projParam.path.run.reg.z(runs,2,:) = tempRegProjPath;
                     else
-                        error('2 channel case needs to be fixed')
+                        regRunProj{runs,1,Z} = tempRegProj{Z}(:,:,:,1);
+                        regRunProj{runs,2,Z} = tempRegProj{Z}(:,:,:,2);
+                        projParam.path.run.reg.z(runs,:,:) = permute(tempRegProjPath, [3,2,1]);
                     end
                 end
             end
             if exist(expt.sbx.cat, 'file')
                 [tempRawProj, runBinLims{runs}, tempRawProjPath] = WriteSbxZproj(expt.sbx.cat, catInfo, 'z',projParam.z, 'chan','both', 'dir',runsDir, 'name',tempName, 'sbxType','raw', 'projType',projParam.type, 'monochrome',true,...
-                    'firstScan',expt.scanLims(runs)+1, 'Nscan', expt.Nscan(runs), 'edge',projParam.edge, 'scale',projParam.scaleFactor, 'binT',projParam.bin, 'overwrite',projParam.overwrite);
+                    'RGB',true, 'firstScan',expt.scanLims(runs)+1, 'Nscan', expt.Nscan(runs), 'edge',projParam.edge, 'scale',projParam.scaleFactor, 'binT',projParam.bin, 'overwrite',projParam.overwrite);
                 for Z = 1:projParam.Nz
                     if size(tempRawProj{Z}, 4) == 1 && strcmpi(projParam.color{1}, 'green')
                         rawRunProj(runs,2,:) = tempRawProj;
@@ -74,9 +76,9 @@ if nargin > 3  %~exist(projParamPath, 'file') % || projParam.overwrite
                         rawRunProj(runs,1,:) = tempRawProj;
                         projParam.path.run.raw.z(runs,2,:) = tempRawProjPath;
                     else
-                        error('2 channel case needs to be fixed')
-                        %rawRunProj(runs,:,:) = permute( tempRawProj(), [] ); % tempRawProj = 
-                        %rawRunProj{runs,2,Z} = tempRawProj(:,:,:,2);
+                        rawRunProj{runs,1,Z} = tempRawProj{Z}(:,:,:,1);
+                        rawRunProj{runs,2,Z} = tempRawProj{Z}(:,:,:,2);
+                        projParam.path.run.raw.z(runs,:,:) = permute(tempRawProjPath, [3,2,1]);
                     end
                 end
             end
@@ -145,13 +147,15 @@ if nargin > 3  %~exist(projParamPath, 'file') % || projParam.overwrite
         if expt.Nplane == 1
             for chan = find(any(~cellfun(@isempty, rawRunProj(:,:,1)))) %find(~cellfun(@isempty, rawRunProj(:,:,1)))
                 if exist(expt.sbx.cat, 'file')
-                    projParam.path.cat.raw.z{chan,1} = sprintf('%s%s_raw_%s.tif', projParam.dir, expt.name, projParam.color{chan} );
+                    projParam.path.cat.raw.z{chan,1} = sprintf('%s%s_raw_%s.tif', projParam.dir, expt.name, chanName{chan} );
                     if ~exist(projParam.path.cat.raw.z{chan,1}, 'file')
                         WriteTiff(cat(3, rawRunProj{:,chan,1}), projParam.path.cat.raw.z{chan,1} );
                     end
                 end
+            end
+            for chan = find(any(~cellfun(@isempty, regRunProj(:,:,1))))
                 if exist(expt.sbx.reg, 'file')
-                    projParam.path.cat.reg.z{chan,1} = sprintf('%s%s_reg_%s.tif', projParam.dir, expt.name, projParam.color{chan} );
+                    projParam.path.cat.reg.z{chan,1} = sprintf('%s%s_reg_%s.tif', projParam.dir, expt.name, chanName{chan} );
                     if ~exist(projParam.path.cat.reg.z{chan,1}, 'file')
                         WriteTiff(cat(3, regRunProj{:,chan,1}), projParam.path.cat.reg.z{chan,1} );
                     end

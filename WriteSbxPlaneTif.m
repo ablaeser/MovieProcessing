@@ -93,7 +93,14 @@ for pmt = usePMT
             stackChan{pmt} = uint16(stackChan{pmt}); 
         end
         if any(edges > 0), stackChan{pmt} = stackChan{pmt}(edges(3)+1:end-edges(4),edges(1)+1:end-edges(2),:,:,:); end  % crop the data
-        if scaleFactor ~= 1, stackChan{pmt} = imresize3( stackChan{pmt}, [size(stackChan{pmt},1)/scaleFactor, size(stackChan{pmt},2)/scaleFactor, size(stackChan{pmt},3)] );  end  % resize       
+        % resize  
+        if scaleFactor ~= 1
+            if Nscan > 1
+                stackChan{pmt} = imresize3( stackChan{pmt}, [size(stackChan{pmt},1)/scaleFactor, size(stackChan{pmt},2)/scaleFactor, size(stackChan{pmt},3)] );
+            else
+                stackChan{pmt} = imresize( stackChan{pmt}, [size(stackChan{pmt},1)/scaleFactor, size(stackChan{pmt},2)/scaleFactor] );
+            end
+        end       
         % Save channel data to monochrome tif (optional)
         if monochrome
             if ~fileExists || overwrite

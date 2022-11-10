@@ -52,7 +52,8 @@ chanInd = [2,1];
 useChan = sort(chanInd(usePMT));
 Nchan = numel(useChan);
 % Determine output file path and name
-saveDir = IP.Results.dir;  mkdir(saveDir);
+saveDir = IP.Results.dir; 
+if ~isempty(saveDir), mkdir(saveDir); end
 saveName = IP.Results.name;
 if isempty(saveName), [~,saveName] = fileparts(sbxPath); end
 if isempty(saveDir), saveDir = strcat(fileparts(sbxPath), '\'); end
@@ -69,8 +70,10 @@ RGB = IP.Results.RGB;
 if Nchan < 2, RGB = false; end
 rescaleIntToggle = IP.Results.rescale;
 verbose = IP.Results.verbose;
-projStack = zeros(sbxInfo.width, sbxInfo.height, sbxInfo.Nplane, 2); % color order: red, green
-rgbStack = zeros(sbxInfo.width, sbxInfo.height, sbxInfo.Nplane, 3);
+if scaleFactor == 1
+    projStack = zeros(sbxInfo.width, sbxInfo.height, sbxInfo.Nplane, 2); % color order: red, green
+    rgbStack = zeros(sbxInfo.width, sbxInfo.height, sbxInfo.Nplane, 3);
+end
 if nargout == 0 && ~(monochrome || RGB) 
     if verbose, fprintf('\nNo output was requested - skipping\n'); end
 else

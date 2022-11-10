@@ -23,7 +23,7 @@ edges = IP.Results.edges;
 %refType = IP.Results.type;
 anchor = IP.Results.anchor;
 
-[refPMT, refPMTname] = DeterminePMT(refChan, sbxInfo); % PMT1 = green, PMT2 = red
+[refPMT, ~] = DeterminePMT(refChan, sbxInfo); % PMT1 = green, PMT2 = red  refPMTname
 Nx = sbxInfo.sz(1); Ny = sbxInfo.sz(2);
 NxCrop = Nx - edges(3) - edges(4);
 NyCrop = Ny - edges(1) - edges(2);

@@ -1,6 +1,7 @@
 clear; clc; close all;
-dataDir = 'D:\2photon\'; % 'D:\2photon\Simone\'; %'C:\2photon';
-dataSet = 'Afferents'; % 'Pollen'; % 'Vasculature'; %  'Astrocyte'; %  'Anatomy'; %      'Neutrophil_Simone'; %  'NGC'; % 'Neutrophil'; % 
+dataDir = 'D:\2photon\Simone\'; % 'D:\2photon\Simone\'; %'C:\2photon';
+dataSet = 'Macrophage'; %'Afferents'; % 'Pollen'; % 'Vasculature'; %  'Astrocyte'; %  'Anatomy'; %      'Neutrophil_Simone'; %  'NGC'; % 'Neutrophil'; % 
+[regParam, projParam] = DefaultProcessingParams(dataSet); % get default parameters for processing various types of data
 % Parse data table
 dataTablePath = 'R:\Levy Lab\2photon\ImagingDatasets.xlsx'; % 'R:\Levy Lab\2photon\ImagingDatasetsSimone2.xlsx'; %'D:\MATLAB\ImagingDatasets.xlsx'; % 'D:\MATLAB\NGCdata.xlsx';  Simone
 dataTable = readcell(dataTablePath, 'sheet',dataSet);  % 'NGC', ''
@@ -12,58 +13,9 @@ dataTable(:,dataCol.date) = cellfun(@num2str, dataTable(:,dataCol.date), 'Unifor
 
 % Initialize variables
 expt = cell(1,Nexpt); runInfo = cell(1,Nexpt); Tscan = cell(1,Nexpt); loco = cell(1,Nexpt);
-% Registration parameters
-regParam.refScan = []; % which scans (in concatenated units) should be used to generate the reference image
-regParam.refRun = NaN; % which run should be used to generate the reference image (only used if refScan is empty)
-regParam.chunkSize = 100; % register this many scans at once, to avoid loading too much data
-regParam.histmatch = false; % true; % enable if registration struggles due to bleaching
-regParam.avgT = 0; % 15;  temporal Gaussian filter width (not downsampling). scans, not seconds
-regParam.avgTsigma = 0; % 5
-regParam.binXY = 2; % spatial downsampling factor - bigger number -> faster
-regParam.binT = 1; % temporal downsampling - keep at 1
-regParam.highpass = 0; % use highpass filtering to clean data during registration
-regParam.lowpass = 0; % use lowpass filtering to clean data during registration
-regParam.medFilter = [0,0,0]; % dimensions (pixels/scans) to use for median filtering filtering to clean data during registration. set to zeros to skip med filtering
-regParam.minInt = 1500; % used for edge selection
-regParam.edges = [60,60,40,40]; % cut this many pixels off from the [left, right, top, bottom] to avoid edges contaminating the registration
-regParam.name = ''; % names can be used to distinguish different versions of registration
-% Projection parameters
-projParam.type = 'max';
-switch lower(dataSet)
-    case 'vasculature'
-        regParam.refChan = 'green';
-        regParam.method = 'affine'; % use affine to get deformation, rigid just to align data
-        projParam.rate_target = 2; % Hz
-        projParam.color = {'red','green'};
-        projParam.vol = false;
-    case 'astrocyte'
-        regParam.refChan = 'red'; 
-        regParam.method = 'translation'; % use affine to get deformation, rigid just to align data
-        projParam.rate_target = 0.5; % Hz
-        projParam.color = {'red','green'};
-        projParam.vol = false;
-    case 'afferents'
-        regParam.refChan = 'green'; 
-        regParam.method = 'affine'; % use affine to get deformation, rigid just to align data
-        projParam.rate_target = 0.5; % Hz
-        projParam.color = {'green'}; % 'red',
-        projParam.vol = false;
-    case 'pollen'
-        regParam.refChan = 'green';
-        regParam.method = 'affine'; % use affine to get deformation, rigid just to align data
-        projParam.rate_target = 1; % Hz
-        projParam.color = {'green'}; % 'red',
-        projParam.vol = true;
-end
-projParam.umPerPixel_target = 1; % target um/pix for projections. spatial downsampling 
-projParam.overwrite = false;
 
-% Various useful subsets of the data to choose from
-%xDone = find([dataTable{:,dataCol.done}] > 0);
-%x3D = intersect( xDone, find([dataTable{:,dataCol.volume}] == 1 ));
-%x2D = intersect( xDone, find( [dataTable{:,dataCol.volume}] == 0 ));
-% Choose which subset to  process
-xPresent = 110; %44; %[18,22,24,30:32]; % flip(100:102); %45:47; % [66:69]; %6;  62,64,
+% Choose which FOV to process
+xPresent = 3; %44; %[18,22,24,30:32]; % flip(100:102); %45:47; % [66:69]; %6;  62,64,
 Npresent = numel(xPresent);
 overwrite = false;
 for x = xPresent  %30 %x2D % x2Dcsd % x3D %% 51

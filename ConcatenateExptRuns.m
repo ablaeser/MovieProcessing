@@ -221,86 +221,13 @@ if expt.Nruns > 1
         end
         rw.delete;
         delete(w);
-
-        %{
-        % OLD VERSION - HANDLES WHOLE RUNS AT ONCE
-        % Write the sbxcat file
-        fprintf('\n     Writing %s\n', catSbxPath); tic
-        rw = SbxWriter(catSbxPath, catInfo, catExt, true); % pipe.io.RegWriter(catSbxPath, catInfo, catExt, true);
-        w = waitbar(0, sprintf('writing %s',catExt));
-        for runs = 1:expt.Nruns %expt.runs
-            % Load run stack
-            fprintf('\n   Loading %s... ', sbxPath{runs}); tic
-            if expt.Nplane > 1
-                runStack = readSBX(sbxPath{runs}, runInfo(runs), 1, Nscan(runs), -1, []); % [c,x,y,z,t]
-                if Nchan == 2
-                    runStack = permute(runStack, [2,3,4,5,1]); % [x,y,z,t,c]
-                    % Apply shifts to each scan
-                    if ~all(interRunShift(runs,:) == 0)
-                        for s = 1:Nscan(runs)
-                            for c = 1:Nchan
-                                runStack(:,:,:,s,c) = imtranslate( runStack(:,:,:,s,c), interRunShift(runs,:)  );
-                            end
-                        end
-                    end
-                    runStack = permute(runStack, [5,1,2,3,4]); % [c,x,y,z,t]
-                    runStack = reshape(runStack, [size(runStack,[1,2,3]), prod(size(runStack,[4,5]))]);
-                    rw.write( runStack ); %
-                elseif Nchan == 1
-                    % Apply shifts to each scan
-                    if ~all(interRunShift(runs,:) == 0)
-                        for s = 1:Nscan(runs)
-                            runStack(:,:,:,s) = imtranslate( runStack(:,:,:,s), interRunShift(runs,:)  );
-                        end
-                    end
-                    % Write the data to sbxcat
-                    runStack = reshape(runStack, [size(runStack,[1,2]), prod(size(runStack,[3,4]))] );
-                    rw.write( runStack ); % rw.write(squeeze(uint16(tempScan)));
-                end
-            else
-                if Nchan == 2
-                    runStack = readSBX(sbxPath{runs}, runInfo(runs), 1, Nscan(runs), -1, []); % [c,x,y,t]
-                    runStack = permute(runStack, [2,3,4,1]); % [x,y,t,c]
-                    % Apply shifts to each scan
-                    if ~all(interRunShift(runs,:) == 0)
-                        for s = 1:Nscan(runs)
-                            for c = 1:Nchan
-                                runStack(:,:,s,c) = imtranslate( runStack(:,:,s,c), interRunShift(runs,:)  );
-                            end
-                        end
-                    end
-                    runStack = permute(runStack, [4,1,2,3]); % [c,x,y,t]
-                    rw.write( runStack ); %
-                elseif Nchan == 1
-                    runStack = readSBX(sbxPath{runs}, runInfo(runs), 1, Nscan(runs), -1, []); % [x,y,t]
-                    % Apply shifts to each scan
-                    if ~all(interRunShift(runs,:) == 0)
-                        for s = 1:Nscan(runs)
-                            runStack(:,:,s) = imtranslate( runStack(:,:,s), interRunShift(runs,:)  );
-                        end
-                    end
-                    rw.write( runStack ); % Write the data to sbxcat
-                end
-            end
-            waitbar( runs/expt.Nruns, w );
-            toc
-        end
-        rw.delete;
-        delete(w);
-        %}
     else
         fprintf('\n%s already exists!', catSbxPath);
     end
-    %{
-    for z = [2,4,6,8,10,14]
-        WriteSbxPlaneTif(catSbxPath, catInfo, z, 'dir',catDir, 'name',[catName,'_cat'], 'overwrite',true  );
-    end
-    %}
-    %WriteSbxProjection(catSbxPath, catInfo, catProjPath, 'dir',catDir, 'name',[catName,'_cat'], 'overwrite',overwrite, 'binT',16); % , 'firstScan',100, 'Nscan',500
 elseif ~exist(catSbxPath, 'file') || overwrite
-    sbxSourcePath = runInfo.path; %strcat(,'z');
-    fprintf('\nSingle run experiment: copying %s to %s', sbxSourcePath, catSbxPath);
-    copyfile(sbxSourcePath, catSbxPath);
+    fprintf('\nSingle run experiment: copying %s to %s', runInfo.path, catSbxPath);
+    copyfile(runInfo.path, catSbxPath);
+    %[~,~,projPath] = WriteSbxProjection(runInfo.path, runInfo, 'monochrome',true', 'RGB',true );
     %{
     % copy-paste the projections too
     if expt.Nplane == 1

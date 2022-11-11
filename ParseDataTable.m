@@ -64,6 +64,7 @@ if exist(expt.dir, 'dir')
     expt.frameRate = runInfo(1).framerate;
     expt.scanRate = runInfo(1).framerate/expt.Nplane;
     expt.sbx.cat = strcat(expt.dir, expt.name, '.sbxcat '); %'.sbx_interp'
+    expt.sbx.z = strcat(expt.dir, expt.name, '.sbxz '); %'.sbx_interp'
     expt.sbx.reg = strcat(expt.dir, expt.name, '.sbxreg ');
     if isfield(runInfo(1).config, 'magnification_list')
         expt.zoom = str2double(runInfo(1).config.magnification_list(runInfo(1).config.magnification,:));

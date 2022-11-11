@@ -1,6 +1,6 @@
 clear; clc; close all;
-dataDir = 'D:\2photon\Simone\'; % 'D:\2photon\Simone\'; %'C:\2photon';
-dataSet = 'Macrophage'; %'Afferents'; % 'Pollen'; % 'Vasculature'; %  'Astrocyte'; %  'Anatomy'; %      'Neutrophil_Simone'; %  'NGC'; % 'Neutrophil'; % 
+dataDir = 'D:\2photon\Simone\'; %'D:\2photon\'; %  'C:\2photon';
+dataSet = 'Macrophage'; % 'Pollen'; %'Afferents'; %  'Vasculature'; %  'Astrocyte'; %  'Anatomy'; %      'Neutrophil_Simone'; %  'NGC'; % 'Neutrophil'; % 
 [regParam, projParam] = DefaultProcessingParams(dataSet); % get default parameters for processing various types of data
 % Parse data table
 dataTablePath = 'R:\Levy Lab\2photon\ImagingDatasets.xlsx'; % 'R:\Levy Lab\2photon\ImagingDatasetsSimone2.xlsx'; %'D:\MATLAB\ImagingDatasets.xlsx'; % 'D:\MATLAB\NGCdata.xlsx';  Simone
@@ -35,15 +35,17 @@ for x = xPresent  %30 %x2D % x2Dcsd % x3D %% 51
         % Determine reference run and scans (longest pre-CSD epoch of stillness)
         [~,tformPath]= FileFinder(expt{x}.dir, 'contains','regTform');
         if isempty(tformPath)
-            [regParam.refRun, regParam.refScan] = DetermineReference(expt{x}, Tscan{x}, loco{x}, 1:2); % 1:4
+            [regParam.refRun, regParam.refScan] = DetermineReference(expt{x}, Tscan{x}, loco{x}, 1:2, 30); % 1:4
         else
             a = load(tformPath{1}, 'params');
-            regParam = a.params; clearvars a;
+            regParam = a.params; clearvars a; % load previously set regParam, if it exists
         end
     else
+        % Set reference run/scans by hand, if desired
         regParam.refRun = 1;  % plot(loco{x}(regParam.refRun).Vdown)
-        regParam.refScan = 130:260; %expt{x}.scanLim
+        regParam.refScan = 10:160; % scans WITHIN the reference run
     end
+    %plot(loco{x}(regParam.refRun).Vdown); hold on; line(regParam.refScan([1,end]), [0,0], 'color','k', 'linewidth',1.5); % show the period to be used as the reference 
 
     % Register individual runs, starting with the reference run
     runInfo{x}(regParam.refRun) = RegisterRun( runInfo{x}(regParam.refRun), regParam, 'overwrite',overwrite, 'fix',false, 'dewarp','rigid', 'interp',false);
@@ -56,14 +58,16 @@ for x = xPresent  %30 %x2D % x2Dcsd % x3D %% 51
     interRunShift = ConcatenateExptRuns(expt{x}, runInfo{x}, catInfo{x}, 'refRun',regParam.refRun, 'refChan',regParam.refChan, 'setEdge',regParam.edges, 'sbx','sbxdft'); %1  expt{x}.refChan
     catProj = WriteSbxProjection(expt{x}.sbx.cat, catInfo{x}, 'chan','green', 'type','cat', 'overwrite',overwrite, 'monochrome',true, 'RGB',true); % 
     % Write projections of concatenated data
-    projParam.edge = regParam.edges; %[40,150,40,40]; %[60,60,40,20]; % [40,40,40,80];%segParams{x}.edges; %[60,60,20,20]; % [70 40 20 20];
-    projParam.z = {4:7, 8:10}; %{17:22, 24:27, 18, 19, 20, 21, 22, 23}; %{3:17, 18:28, 18, 19, 20, 21, 22, 23}; %{17:22, 23:30}; %{29:56, 5:25}; % {7:10, 18:20, 27:30};  % 1; %
+    projParam.edge = [60,60,40,40]; %regParam.edges; %[40,150,40,40]; %[60,60,40,20]; % [40,40,40,80];%segParams{x}.edges; %[60,60,20,20]; % [70 40 20 20];
+    projParam.z = {6:9, 8:10, 12:14}; %{17:22, 24:27, 18, 19, 20, 21, 22, 23}; %{3:17, 18:28, 18, 19, 20, 21, 22, 23}; %{17:22, 23:30}; %{29:56, 5:25}; % {7:10, 18:20, 27:30};  % 1; %
     projParam.overwrite = false;
+    projParam.sbx_type = {'cat','z'};
     projParam = GenerateExptProjections(expt{x}, catInfo{x}, Tscan{x}, projParam); % write projections of unregistered data by run
 
     %
     CatInterpZ(catInfo{x}.path, catInfo{x}, 'refScan',regParam.refScan, 'edges',regParam.edges );
     MakeSbxZ_new(catInfo{x}.path, catInfo{x}); % , shiftPath
+    projParam = GenerateExptProjections(expt{x}, catInfo{x}, Tscan{x}, projParam);
     
     % Register the concatenated data (see RegisterCat3D, AlignPlanes and RegisterSBX for more info)   
     fprintf('\n   Performing planar registration... '); % (reference averaged over scans %i - %i)

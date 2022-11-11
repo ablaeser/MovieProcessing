@@ -1,4 +1,4 @@
-function [projStack, rgbStack] = WriteSbxProjection(sbxPath, sbxInfo, varargin) % projPath, 
+function [projStack, rgbStack, projPath] = WriteSbxProjection(sbxPath, sbxInfo, varargin) % projPath, 
 % Extract data from an SBX file, and then perform a projection (mean or max) across frames
 checkInfo = @(x)(isstruct(x) || isempty(x));
 IP = inputParser;
@@ -74,11 +74,12 @@ if scaleFactor == 1
     projStack = zeros(sbxInfo.width, sbxInfo.height, sbxInfo.Nplane, 2); % color order: red, green
     rgbStack = zeros(sbxInfo.width, sbxInfo.height, sbxInfo.Nplane, 3);
 end
+%projPath = cell(1,3);
 if nargout == 0 && ~(monochrome || RGB) 
     if verbose, fprintf('\nNo output was requested - skipping\n'); end
 else
     % Determine which channel(s) to use, create paths to monochrome projections and check if they already exist
-    chanProjPath = cell(2,1); chanProjExists = false(2,1);
+    chanProjPath = cell(1,2); chanProjExists = false(1,2);
     for chan = useChan 
         chanProjPath{chan} = sprintf('%s%s%s.tif', saveDir, nameRoot, chanName{chan}); % chanName
         if exist(chanProjPath{chan},'file') && ~overwrite
@@ -141,73 +142,9 @@ else
         if verbose, fprintf('\nWriting %s', rgbPath); end
         rgbStack = uint8(rgbStack);
         WriteTiff(rgbStack, rgbPath);
+    else
+        rgbPath = '';
     end
 end
-
-
-
-%{
-projsExist = [exist(projPath,'file'), exist(chanProjPath{1},'file'), exist(chanProjPath{2},'file')];
-outputToggle = nargout > 0;
-tic;
-if ~(~outputToggle && ~overwrite && projsExist)
-    % Get each plane, crop, resize, and mean project (can't necessarily get the full data at once due to memory constraints)
-    %projStack = zeros(sbxInfo.width, sbxInfo.height, sbxInfo.Nplane, 2); % color order: red, green
-    for Z = flip(1:numel(zSet)) % flip(zSet) %flip(1:sbxInfo.otlevels)
-        if verbose, fprintf('\nZ = %i', Z); end
-        %if ~isempty(saveName), tempName = saveName; else, tempName = ''; end  % sprintf('%s_plane%01i',saveName, Z);
-        [~, tempChan] = WriteSbxPlaneTif(sbxPath, sbxInfo, zSet(Z), 'verbose',verbose, 'dir',saveDir, 'name',saveName, 'overwrite',overwrite, ...
-            'edges',edges, 'scale',scaleFactor, 'firstScan',firstScan, 'Nscan',Nscan, 'chan',usePMTname, 'zeros',true, 'binT',binT, 'RGB',RGB, 'monochrome',monochrome ); % 
-        if strcmpi(projType,'mean')
-            tempProj = cellfun(@mean, tempChan, {3,3}, 'UniformOutput',false);
-        else
-            tempProj = cellfun(maxZ, tempChan, 'UniformOutput',false);
-        end
-        for pmt = usePMT %find(~cellfun(@isempty, tempProj)) %intersect(writeChanInd, )
-            projStack(:,:,zSet(Z),pmt) = tempProj{pmt};
-        end
-    end
-    projStack = projStack(:,:,:,usePMT);
-
-    if verbose, toc; end
-    % Save or load preexisting tif (optional)
-    if ~isempty( projPath ) || overwrite
-        if verbose, fprintf('\nWriting %s', projPath); end
-        if numel(usePMT) > 1 
-            tifStack = zeros(size(projStack,1), size(projStack,2), size(projStack,3), 3);
-            for chan = usePMT
-                chanProjPath = sprintf('%s\\%s_%s.tif', projDir, projName, chanName{chan});
-                if monochrome 
-                    if(~exist(chanProjPath, 'file') || overwrite)
-                        saveastiff(uint16(projStack(:,:,:,chan)), chanProjPath);
-                    end
-                end
-                if RGB
-                    if ~rescaleIntToggle
-                        tifStack(:,:,:,chanInd(chan)) = projStack(:,:,:,chan)/256;
-                    else
-                        tempStack = projStack(:,:,:,chan);
-                        chanLower = prctile(tempStack(:), 1);
-                        chanUpper = max(tempStack(:)); %prctile(stackChan{chan}(:), 1);
-                        if verbose, fprintf('\nRescaling %s channel: [%i, %i] -> [0, 255]', chanName{chan}, chanLower, chanUpper); end
-                        tifStack(:,:,:,chanInd(chan)) = rescale(tempStack, 0, 2^8-1, 'inputMin',chanLower); % min(stackChan{chan}(:))
-                    end
-                    tifStack = uint8(tifStack);
-                    WriteTiff(tifStack, projPath); %pipe.io.writeTiff(tifStack, projPath);
-                end
-            end
-        else
-            tifStack = uint16(projStack);
-            WriteTiff(tifStack, projPath);
-        end
-        if verbose, fprintf('... done!\n'); end
-    end
-elseif projsExist && outputToggle
-    tifStack = loadtiff(projPath);
-    tifStack = permute(tifStack, [1,2,4,3]);
-    projStack = flip(tifStack(:,:,:,[1,2]),4);
-else
-    if verbose, fprintf('\n%s already exists and no output was requested\n', projPath); end
-end
-%}
+projPath = [chanProjPath, {rgbPath}];
 end

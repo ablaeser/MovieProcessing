@@ -1,7 +1,8 @@
-function [ref_run, ref_scan] = DetermineReference(expt, Tscan, loco, eligible_runs) % refFrame
+function [ref_run, ref_scan] = DetermineReference(expt, Tscan, loco, eligible_runs, minStillDur) % refFrame
 % Find the longest epoch of stillness within the set of eligbile runs, and use that period as the reference point for registration
 if isempty(eligible_runs), eligible_runs = expt.runs; end
-minStillDur = 30; trim = 5; 
+%minStillDur = 30; 
+trim = 5; 
 %minTrim = 0.5;
 %Nepoch = 0;
 
@@ -14,6 +15,7 @@ while isempty(ep_longest)%Nepoch == 0
     %Nepoch =  stillSumm.Nepoch;
     
     % Find the longest epoch within the eligible runs
+    %{
     longest_dur = 0;
     for ep = find(ismember(stillSumm.epoch_run, eligible_runs)) % 1:stillSumm.Nepoch
         if stillSumm.dur_full(ep) > longest_dur
@@ -21,9 +23,17 @@ while isempty(ep_longest)%Nepoch == 0
             longest_dur = stillSumm.dur_full(ep);
         end
     end
+    %}
+    % which run had the longest still epoch?
+    tempDur = stillSumm.dur_full;
+    tempDur(~ismember(stillSumm.epoch_run, eligible_runs)) = NaN; % suppress ineligible epochs
+    [~,ep_longest] = max(tempDur);
+
     if ~isempty(ep_longest)
         ref_run = stillSumm.epoch_run(ep_longest);
         [~,refRunLongestEp] = max(stillEpoch(ref_run).dur_full);
+        ref_scan = stillEpoch(ref_run).scan_trim{refRunLongestEp};
+        %{
         ref_frame = stillEpoch(ref_run).scan_trim{refRunLongestEp};
         % Convert frames to scans, if necessary
         if expt.Nplane > 1
@@ -32,6 +42,7 @@ while isempty(ep_longest)%Nepoch == 0
         else
             ref_scan = ref_frame;
         end
+        %}
     end
     % Lower the threshold for the next iteration, if needed  
     minStillDur = minStillDur-1;
